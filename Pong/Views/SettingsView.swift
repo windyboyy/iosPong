@@ -8,12 +8,8 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @StateObject private var userManager = UserManager.shared
     @StateObject private var appSettings = AppSettings.shared
     @EnvironmentObject var languageManager: LanguageManager
-    @State private var showDeleteAccountAlert = false
-    @State private var showLogoutAlert = false
-    @State private var isDeleting = false
     @Environment(\.dismiss) private var dismiss
     
     private var l10n: L10n { L10n.shared }
@@ -113,30 +109,6 @@ struct SettingsView: View {
                 }
             }
             
-            // 账号管理（仅登录后显示）
-            if userManager.isLoggedIn {
-                Section(l10n.accountManagement) {
-                    Button(role: .destructive) {
-                        showDeleteAccountAlert = true
-                    } label: {
-                        HStack {
-                            Text(l10n.deleteAccount)
-                            Spacer()
-                            if isDeleting {
-                                ProgressView()
-                            }
-                        }
-                    }
-                    .disabled(isDeleting)
-                    
-                    Button(role: .destructive) {
-                        showLogoutAlert = true
-                    } label: {
-                        Text(l10n.logoutAccount)
-                    }
-                }
-            }
-            
             // 关于
             Section(l10n.about) {
                 HStack {
@@ -156,26 +128,6 @@ struct SettingsView: View {
         }
         .navigationTitle(l10n.settings)
         .navigationBarTitleDisplayMode(.inline)
-        .alert(l10n.deleteAccountTitle, isPresented: $showDeleteAccountAlert) {
-            Button(l10n.cancel, role: .cancel) { }
-            Button(l10n.confirmDelete, role: .destructive) {
-                Task {
-                    isDeleting = true
-                    _ = await userManager.deleteAccount()
-                    isDeleting = false
-                }
-            }
-        } message: {
-            Text(l10n.deleteAccountMessage)
-        }
-        .alert(l10n.logoutAccountTitle, isPresented: $showLogoutAlert) {
-            Button(l10n.cancel, role: .cancel) { }
-            Button(l10n.confirmLogoutAccount, role: .destructive) {
-                userManager.logout()
-            }
-        } message: {
-            Text(l10n.logoutAccountMessage)
-        }
     }
 }
 
@@ -207,7 +159,6 @@ private let userServiceAgreement = """
 
 iTango 网络探测（以下简称"本服务"）是由腾讯公司提供的网络质量监测工具，包括但不限于：
 • 本地网络诊断工具（Ping、路由追踪、DNS查询等）
-• 云探测服务（通过全球云主机节点进行网络探测）
 • 一键诊断服务
 
 二、用户注册与账号
@@ -368,17 +319,12 @@ private let collectedInfoList = """
 
 3. 用户账号
    • 信息类型：用户ID
-   • 收集目的：识别用户身份，提供云探测服务
+   • 收集目的：识别用户身份，提供个性化服务
    • 收集方式：用户登录时自动生成
 
 二、可选功能所需信息
 
-1. 云探测功能
-   • 信息类型：用户ID、探测任务记录
-   • 收集目的：创建和管理云探测任务
-   • 收集方式：用户主动发起
-
-2. 一键诊断功能
+1. 一键诊断功能
    • 信息类型：诊断码、诊断结果
    • 收集目的：执行诊断任务并上报结果
    • 收集方式：用户主动发起

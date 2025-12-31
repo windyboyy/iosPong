@@ -21,7 +21,7 @@ class HostHistoryManager: ObservableObject {
     private let udpHistoryKey = "UDPHostHistory"
     private let traceHistoryKey = "TraceHostHistory"
     private let httpHistoryKey = "HTTPHostHistory"
-    private let cloudProbeHistoryKey = "CloudProbeHostHistory"
+    private let connectionTestHistoryKey = "ConnectionTestHostHistory"
     
     // 最大历史记录数
     private let maxHistoryCount = 10
@@ -33,7 +33,7 @@ class HostHistoryManager: ObservableObject {
     @Published var udpHistory: [String] = []
     @Published var traceHistory: [String] = []
     @Published var httpHistory: [String] = []
-    @Published var cloudProbeHistory: [String] = []
+    @Published var connectionTestHistory: [String] = []
     
     private init() {
         loadAllHistory()
@@ -47,7 +47,7 @@ class HostHistoryManager: ObservableObject {
         udpHistory = UserDefaults.standard.stringArray(forKey: udpHistoryKey) ?? []
         traceHistory = UserDefaults.standard.stringArray(forKey: traceHistoryKey) ?? []
         httpHistory = UserDefaults.standard.stringArray(forKey: httpHistoryKey) ?? []
-        cloudProbeHistory = UserDefaults.standard.stringArray(forKey: cloudProbeHistoryKey) ?? []
+        connectionTestHistory = UserDefaults.standard.stringArray(forKey: connectionTestHistoryKey) ?? []
     }
     
     // MARK: - 添加历史记录
@@ -75,8 +75,8 @@ class HostHistoryManager: ObservableObject {
         addHistory(url, to: &httpHistory, key: httpHistoryKey)
     }
     
-    func addCloudProbeHistory(_ host: String) {
-        addHistory(host, to: &cloudProbeHistory, key: cloudProbeHistoryKey)
+    func addConnectionTestHistory(_ host: String) {
+        addHistory(host, to: &connectionTestHistory, key: connectionTestHistoryKey)
     }
     
     private func addHistory(_ host: String, to history: inout [String], key: String) {
@@ -120,8 +120,8 @@ class HostHistoryManager: ObservableObject {
         removeHistory(url, from: &httpHistory, key: httpHistoryKey)
     }
     
-    func removeCloudProbeHistory(_ host: String) {
-        removeHistory(host, from: &cloudProbeHistory, key: cloudProbeHistoryKey)
+    func removeConnectionTestHistory(_ host: String) {
+        removeHistory(host, from: &connectionTestHistory, key: connectionTestHistoryKey)
     }
     
     private func removeHistory(_ host: String, from history: inout [String], key: String) {
@@ -160,9 +160,9 @@ class HostHistoryManager: ObservableObject {
         UserDefaults.standard.removeObject(forKey: httpHistoryKey)
     }
     
-    func clearCloudProbeHistory() {
-        cloudProbeHistory.removeAll()
-        UserDefaults.standard.removeObject(forKey: cloudProbeHistoryKey)
+    func clearConnectionTestHistory() {
+        connectionTestHistory.removeAll()
+        UserDefaults.standard.removeObject(forKey: connectionTestHistoryKey)
     }
 }
 

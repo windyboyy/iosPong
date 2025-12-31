@@ -153,7 +153,6 @@ struct L10n {
     
     // MARK: - Tab 栏
     var tabLocalProbe: String { lang == .chinese ? "本地测" : "Local" }
-    var tabCloudProbe: String { lang == .chinese ? "云探测" : "Cloud" }
     var tabIPQuery: String { lang == .chinese ? "IP" : "IP" }
     var tabProfile: String { lang == .chinese ? "我的" : "Profile" }
     
@@ -188,29 +187,10 @@ struct L10n {
     var error: String { lang == .chinese ? "错误" : "Error" }
     var deviceInfo: String { lang == .chinese ? "本机信息" : "Device Info" }
     var deviceInfoDesc: String { lang == .chinese ? "查看设备与 IP 归属地" : "View device and IP location" }
+    var connectionTest: String { lang == .chinese ? "连接测试" : "Connection" }
+    var connectionTestDesc: String { lang == .chinese ? "测试 IPv4/IPv6 优先级" : "Test IPv4/IPv6 priority" }
     
-    // MARK: - 云探测
-    var probeType: String { lang == .chinese ? "探测类型" : "Probe Type" }
-    var targetAddress: String { lang == .chinese ? "目标地址" : "Target Address" }
-    var targetExample: String { lang == .chinese ? "例如: www.qq.com" : "e.g. www.qq.com" }
-    var port: String { lang == .chinese ? "端口" : "Port" }
-    var portDefault: String { lang == .chinese ? "端口 (默认 443)" : "Port (default 443)" }
-    var recordType: String { lang == .chinese ? "记录类型" : "Record Type" }
-    var filterCondition: String { lang == .chinese ? "筛选条件" : "Filter" }
-    var selectAtLeastOne: String { lang == .chinese ? "至少选取一项" : "Select at least one" }
-    var country: String { lang == .chinese ? "国家" : "Country" }
-    var province: String { lang == .chinese ? "省份" : "Province" }
-    var city: String { lang == .chinese ? "城市" : "City" }
-    var isp: String { lang == .chinese ? "运营商" : "ISP" }
-    var asNumber: String { lang == .chinese ? "AS号" : "AS Number" }
-    var all: String { lang == .chinese ? "全部" : "All" }
-    var startProbe: String { lang == .chinese ? "开始探测" : "Start Probe" }
-    var creating: String { lang == .chinese ? "创建中..." : "Creating..." }
-    var probing: String { lang == .chinese ? "探测中..." : "Probing..." }
-    var queryingResult: String { lang == .chinese ? "正在查询结果..." : "Querying results..." }
-    var probeResult: String { lang == .chinese ? "探测结果" : "Probe Results" }
-    var records: String { lang == .chinese ? "条记录" : "records" }
-    var clear: String { lang == .chinese ? "清空" : "Clear" }
+    // MARK: - 通用
     var loading: String { lang == .chinese ? "加载中..." : "Loading..." }
     var retry: String { lang == .chinese ? "重试" : "Retry" }
     var noData: String { lang == .chinese ? "暂无数据" : "No data" }
@@ -229,7 +209,31 @@ struct L10n {
     var sourceIP: String { lang == .chinese ? "源IP:" : "Source IP:" }
     var queryTime: String { lang == .chinese ? "查询耗时" : "Query Time" }
     var resolveResult: String { lang == .chinese ? "解析结果" : "Resolution Result" }
-    var noProbeResult: String { lang == .chinese ? "未获取到探测结果" : "No probe results" }
+    var clear: String { lang == .chinese ? "清空" : "Clear" }
+    var records: String { lang == .chinese ? "条记录" : "records" }
+    var recordType: String { lang == .chinese ? "记录类型" : "Record Type" }
+    var port: String { lang == .chinese ? "端口" : "Port" }
+    var country: String { lang == .chinese ? "国家" : "Country" }
+    var province: String { lang == .chinese ? "省份" : "Province" }
+    var city: String { lang == .chinese ? "城市" : "City" }
+    var isp: String { lang == .chinese ? "运营商" : "ISP" }
+    var all: String { lang == .chinese ? "全部" : "All" }
+    
+    // MARK: - 连接测试
+    var startTest: String { lang == .chinese ? "开始测试" : "Start Test" }
+    var testResults: String { lang == .chinese ? "测试结果" : "Test Results" }
+    var enterDomainToTest: String { lang == .chinese ? "输入域名开始测试" : "Enter domain to start test" }
+    var resolvingDNS: String { lang == .chinese ? "正在解析 DNS..." : "Resolving DNS..." }
+    var testingIPv4: String { lang == .chinese ? "正在测试 IPv4 连接..." : "Testing IPv4 connection..." }
+    var testingIPv6: String { lang == .chinese ? "正在测试 IPv6 连接..." : "Testing IPv6 connection..." }
+    var testCompleted: String { lang == .chinese ? "测试完成" : "Test completed" }
+    var useIPv4: String { lang == .chinese ? "使用 IPv4 访问" : "Using IPv4" }
+    var useIPv6: String { lang == .chinese ? "使用 IPv6 访问" : "Using IPv6" }
+    var conclusion: String { lang == .chinese ? "结论" : "Conclusion" }
+    var resolution: String { lang == .chinese ? "解析" : "Resolution" }
+    var noRecord: String { lang == .chinese ? "无记录" : "No record" }
+    var connectionTimeout: String { lang == .chinese ? "连接超时" : "Connection timeout" }
+    var connectionCancelled: String { lang == .chinese ? "连接已取消" : "Connection cancelled" }
     
     // MARK: - IP 查询
     var ipQuery: String { lang == .chinese ? "IP查询" : "IP Query" }
@@ -243,18 +247,11 @@ struct L10n {
     
     // MARK: - 我的页面
     var profile: String { lang == .chinese ? "我的" : "Profile" }
-    var clickToLogin: String { lang == .chinese ? "点击登录" : "Tap to Login" }
-    var loginToUseCloud: String { lang == .chinese ? "登录后可使用云探测功能" : "Login to use cloud probe" }
-    var guestAccount: String { lang == .chinese ? "游客账号" : "Guest" }
     var helpCenter: String { lang == .chinese ? "帮助中心" : "Help Center" }
     var feedback: String { lang == .chinese ? "意见反馈" : "Feedback" }
     var settings: String { lang == .chinese ? "设置" : "Settings" }
-    var logout: String { lang == .chinese ? "退出登录" : "Logout" }
-    var confirmLogout: String { lang == .chinese ? "确认退出" : "Confirm Logout" }
-    var confirmLogoutMessage: String { lang == .chinese ? "确定要退出登录吗？" : "Are you sure you want to logout?" }
     var cancel: String { lang == .chinese ? "取消" : "Cancel" }
     var confirm: String { lang == .chinese ? "确定" : "Confirm" }
-    var exit: String { lang == .chinese ? "退出" : "Exit" }
     
     // MARK: - 设置页面
     var displaySettings: String { lang == .chinese ? "显示设置" : "Display Settings" }
@@ -265,17 +262,8 @@ struct L10n {
     var privacyPolicyFull: String { lang == .chinese ? "隐私政策完整版" : "Full Privacy Policy" }
     var collectedInfoList: String { lang == .chinese ? "已收集个人信息清单" : "Collected Information List" }
     var thirdPartySDK: String { lang == .chinese ? "第三方SDK目录" : "Third-party SDK List" }
-    var accountManagement: String { lang == .chinese ? "账号管理" : "Account Management" }
-    var deleteAccount: String { lang == .chinese ? "注销账号" : "Delete Account" }
-    var logoutAccount: String { lang == .chinese ? "登出账号" : "Logout" }
     var about: String { lang == .chinese ? "关于" : "About" }
     var version: String { lang == .chinese ? "版本" : "Version" }
-    var deleteAccountTitle: String { lang == .chinese ? "注销账号" : "Delete Account" }
-    var deleteAccountMessage: String { lang == .chinese ? "注销后，您的账号数据将被清除，此操作不可恢复。确定要注销吗？" : "After deletion, your account data will be cleared. This action cannot be undone. Are you sure?" }
-    var confirmDelete: String { lang == .chinese ? "确认注销" : "Confirm Delete" }
-    var logoutAccountTitle: String { lang == .chinese ? "登出账号" : "Logout" }
-    var logoutAccountMessage: String { lang == .chinese ? "确定要登出当前账号吗？" : "Are you sure you want to logout?" }
-    var confirmLogoutAccount: String { lang == .chinese ? "确认登出" : "Confirm Logout" }
     var languageLabel: String { lang == .chinese ? "语言" : "Language" }
     var languageSettings: String { lang == .chinese ? "语言设置" : "Language Settings" }
     var homeStyleSettings: String { lang == .chinese ? "首页样式" : "Home Style" }
@@ -284,69 +272,19 @@ struct L10n {
     var userZone: String { lang == .chinese ? "用户专区" : "User Zone" }
     var engineerZone: String { lang == .chinese ? "工程师专区" : "Engineer Zone" }
     
-    // MARK: - 登录页面
-    var login: String { lang == .chinese ? "登录" : "Login" }
-    var iTangoNetworkProbe: String { lang == .chinese ? "iTango 网络探测" : "iTango Network Probe" }
-    var globalNetworkPlatform: String { lang == .chinese ? "全球网络质量监测平台" : "Global Network Quality Monitoring" }
-    var oneClickLogin: String { lang == .chinese ? "一键登录，无需注册" : "One-click login, no registration" }
-    var autoAssignID: String { lang == .chinese ? "自动分配唯一用户ID" : "Auto-assign unique user ID" }
-    var enjoyCloudProbe: String { lang == .chinese ? "畅享云探测功能" : "Enjoy cloud probe features" }
-    var guestLogin: String { lang == .chinese ? "游客登录" : "Guest Login" }
-    var loggingIn: String { lang == .chinese ? "登录中..." : "Logging in..." }
-    var loginAgreement: String { lang == .chinese ? "登录即表示您同意《用户服务协议》和《隐私政策》" : "By logging in, you agree to the Terms of Service and Privacy Policy" }
-    var agreeToTerms: String { lang == .chinese ? "我已阅读并同意" : "I have read and agree to" }
-    var pleaseAgreeToTerms: String { lang == .chinese ? "请先阅读并同意相关协议" : "Please read and agree to the terms first" }
-    var loginFailed: String { lang == .chinese ? "登录失败" : "Login Failed" }
-    var loginFailedRetry: String { lang == .chinese ? "登录失败，请重试" : "Login failed, please retry" }
-    var loginSuccess: String { lang == .chinese ? "登录成功" : "Login Successful" }
-    
-    // 手机号登录
-    var phoneLogin: String { lang == .chinese ? "手机号登录" : "Phone Login" }
-    var accountLogin: String { lang == .chinese ? "账号密码登录" : "Account Login" }
-    var phoneNumber: String { lang == .chinese ? "手机号" : "Phone Number" }
-    var enterPhoneNumber: String { lang == .chinese ? "请输入手机号" : "Enter phone number" }
-    var verificationCode: String { lang == .chinese ? "验证码" : "Verification Code" }
-    var enterVerificationCode: String { lang == .chinese ? "请输入验证码" : "Enter verification code" }
-    var getVerificationCode: String { lang == .chinese ? "获取验证码" : "Get Code" }
-    var resendCode: String { lang == .chinese ? "重新发送" : "Resend" }
-    var sendingCode: String { lang == .chinese ? "发送中..." : "Sending..." }
-    var codeSent: String { lang == .chinese ? "验证码已发送" : "Code Sent" }
-    var invalidPhoneNumber: String { lang == .chinese ? "请输入有效的手机号" : "Please enter a valid phone number" }
-    var invalidVerificationCode: String { lang == .chinese ? "请输入验证码" : "Please enter verification code" }
-    var username: String { lang == .chinese ? "用户名" : "Username" }
-    var enterUsername: String { lang == .chinese ? "请输入用户名" : "Enter username" }
-    var password: String { lang == .chinese ? "密码" : "Password" }
-    var enterPassword: String { lang == .chinese ? "请输入密码" : "Enter password" }
-    var invalidUsername: String { lang == .chinese ? "请输入用户名" : "Please enter username" }
-    var invalidPassword: String { lang == .chinese ? "请输入密码" : "Please enter password" }
-    var sendCodeFailed: String { lang == .chinese ? "发送验证码失败" : "Failed to send code" }
-    
-    // 账号密码登录
-    var userType: String { lang == .chinese ? "用户类型" : "User Type" }
-    var communityVersion: String { lang == .chinese ? "社区版" : "Community" }
-    var businessVersion: String { lang == .chinese ? "定制版" : "Business" }
-    var customVersion: String { lang == .chinese ? "定制版" : "Custom" }
-    var captcha: String { lang == .chinese ? "验证码" : "Captcha" }
-    var enterCaptcha: String { lang == .chinese ? "请输入验证码" : "Enter captcha" }
-    var loadCaptcha: String { lang == .chinese ? "点击获取" : "Load" }
-    var invalidCaptcha: String { lang == .chinese ? "请输入验证码" : "Please enter captcha" }
-    
     // MARK: - 一键诊断
-    var enterDiagnosisCode: String { lang == .chinese ? "请输入6位诊断码" : "Enter 6-digit diagnosis code" }
-    var fetchingDiagnosis: String { lang == .chinese ? "正在获取诊断案例..." : "Fetching diagnosis case..." }
-    var diagnosisCodeFromHuatuo: String { lang == .chinese ? "诊断码可从华佗平台获取" : "Get diagnosis code from Huatuo platform" }
-    var probeTasks: String { lang == .chinese ? "个探测任务" : "probe tasks" }
+    var enterTargetAddress: String { lang == .chinese ? "请输入目标地址" : "Enter target address" }
+    var targetAddressPlaceholder: String { lang == .chinese ? "输入域名或 IP 地址" : "Enter domain or IP address" }
+    var diagnosisAddressHint: String { lang == .chinese ? "支持域名或 IP 地址，如 baidu.com 或 8.8.8.8" : "Supports domain or IP address, e.g. baidu.com or 8.8.8.8" }
     var startDiagnosis: String { lang == .chinese ? "开始诊断" : "Start Diagnosis" }
     var executingDiagnosis: String { lang == .chinese ? "正在执行诊断..." : "Executing diagnosis..." }
     var task: String { lang == .chinese ? "任务" : "Task" }
     var diagnosisComplete: String { lang == .chinese ? "诊断完成" : "Diagnosis Complete" }
     var tasksSuccess: String { lang == .chinese ? "个任务成功" : "tasks succeeded" }
-    var resultLinkedToReport: String { lang == .chinese ? "结果已关联到 Report" : "Results linked to Report" }
     var reDiagnose: String { lang == .chinese ? "重新诊断" : "Re-diagnose" }
-    var fetchFailed: String { lang == .chinese ? "获取失败" : "Fetch Failed" }
+    var diagnosisFailed: String { lang == .chinese ? "诊断失败" : "Diagnosis Failed" }
     var pending: String { lang == .chinese ? "等待中" : "Pending" }
     var running: String { lang == .chinese ? "执行中" : "Running" }
-    var diagnosisCode: String { lang == .chinese ? "诊断码" : "Diagnosis Code" }
     
     // 诊断任务类型
     var diagnosisPingTest: String { lang == .chinese ? "Ping 测试" : "Ping Test" }
@@ -417,7 +355,6 @@ struct L10n {
     
     // MARK: - 帮助中心
     var faq: String { lang == .chinese ? "常见问题" : "FAQ" }
-    var whatIsCloudProbe: String { lang == .chinese ? "什么是云探测？" : "What is Cloud Probe?" }
     var howToUseDiagnosis: String { lang == .chinese ? "如何使用一键诊断？" : "How to use Quick Diagnosis?" }
     var localToolsDesc: String { lang == .chinese ? "本地测工具说明" : "Local Tools Description" }
     var contactUs: String { lang == .chinese ? "联系我们" : "Contact Us" }
@@ -555,8 +492,7 @@ struct L10n {
     var uploadAllMessage: String { lang == .chinese ? "确定要上传所有历史记录吗？" : "Are you sure you want to upload all history records?" }
     var noRecordsToUpload: String { lang == .chinese ? "没有可上传的记录" : "No records to upload" }
     var swipeHint: String { lang == .chinese ? "左滑记录可上传或删除" : "Swipe left to upload or delete" }
-    var loginRequiredForUpload: String { lang == .chinese ? "请先登录后再上传" : "Please login to upload" }
-    var guestCannotUpload: String { lang == .chinese ? "游客无法上传记录，请使用手机或账号密码登录" : "Guest cannot upload records, please login with phone or account" }
+    var guestCannotUpload: String { lang == .chinese ? "游客无法上传记录" : "Guest cannot upload records" }
     var rawRecords: String { lang == .chinese ? "原始记录" : "Raw Records" }
     var minLatency: String { lang == .chinese ? "最小延迟" : "Min Latency" }
     var maxLatency: String { lang == .chinese ? "最大延迟" : "Max Latency" }

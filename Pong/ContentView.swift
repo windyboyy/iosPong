@@ -10,14 +10,14 @@ import SwiftUI
 // MARK: - Tab 类型
 enum AppTab: String, CaseIterable {
     case localProbe = "localProbe"
-    case cloudProbe = "cloudProbe"
+    case speedTest = "speedTest"
     case ipQuery = "ipQuery"
     case profile = "profile"
     
     var icon: String {
         switch self {
         case .localProbe: return "iphone.gen1"
-        case .cloudProbe: return "icloud"
+        case .speedTest: return "speedometer"
         case .ipQuery: return "magnifyingglass"
         case .profile: return "person"
         }
@@ -26,7 +26,7 @@ enum AppTab: String, CaseIterable {
     func title(_ l10n: L10n) -> String {
         switch self {
         case .localProbe: return l10n.tabLocalProbe
-        case .cloudProbe: return l10n.tabCloudProbe
+        case .speedTest: return l10n.speedTest
         case .ipQuery: return l10n.tabIPQuery
         case .profile: return l10n.tabProfile
         }
@@ -38,8 +38,10 @@ enum AppTab: String, CaseIterable {
         switch self {
         case .localProbe:
             HomeView()
-        case .cloudProbe:
-            CloudProbeView()
+        case .speedTest:
+            NavigationStack {
+                SpeedTestView()
+            }
         case .ipQuery:
             IPQueryView()
         case .profile:
@@ -50,7 +52,7 @@ enum AppTab: String, CaseIterable {
     /// 是否需要自定义 tabItem（不使用 Label）
     var needsCustomTabItem: Bool {
         switch self {
-        case .cloudProbe, .profile:
+        case .profile:
             return true
         default:
             return false
@@ -61,7 +63,6 @@ enum AppTab: String, CaseIterable {
 struct ContentView: View {
     @EnvironmentObject var languageManager: LanguageManager
     @StateObject private var updateManager = AppUpdateManager.shared
-    @StateObject private var tabConfigManager = TabConfigManager.shared
     @State private var selectedTab: AppTab = .localProbe
     
     private var l10n: L10n { L10n.shared }
@@ -73,11 +74,11 @@ struct ContentView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            ForEach(tabConfigManager.enabledTabs, id: \.self) { tab in
+            ForEach(AppTab.allCases, id: \.self) { tab in
                 tab.view()
                     .tabItem {
                         if tab.needsCustomTabItem {
-                            Image(systemName: tab == .cloudProbe ? "cloud" : "person")
+                            Image(systemName: "person")
                                 .environment(\.symbolVariants, .none)
                             Text(tab.title(l10n))
                         } else {
@@ -89,10 +90,6 @@ struct ContentView: View {
         }
         .tint(.blue)
         .id(tabViewId) // 只在语言变化时重建 TabView
-        .task {
-            // 后台静默获取 Tab 配置（不阻塞 UI）
-            await tabConfigManager.fetchTabConfig()
-        }
         .task {
             // 启动时检查更新
             await updateManager.checkUpdateOnLaunch()
@@ -116,18 +113,6 @@ struct ContentView: View {
         } message: {
             if let data = updateManager.updateData {
                 Text("\(l10n.currentVersion): \(updateManager.currentVersion) → \(l10n.latestVersion): \(data.latestVersion)\n\n\(data.updateContent)")
-            }
-        }
-        .onChange(of: tabConfigManager.enabledTabs) { _, newTabs in
-            // 当配置变化时，确保选中的 Tab 仍然有效
-            if !newTabs.contains(selectedTab) {
-                selectedTab = tabConfigManager.getDefaultTab()
-            }
-        }
-        .onAppear {
-            // 确保初始选中的 Tab 是有效的
-            if !tabConfigManager.enabledTabs.contains(selectedTab) {
-                selectedTab = tabConfigManager.getDefaultTab()
             }
         }
     }

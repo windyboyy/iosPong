@@ -12,7 +12,8 @@ struct DNSView: View {
     @StateObject private var dnsManager = DNSManager.shared
     @StateObject private var historyManager = HostHistoryManager.shared
     @State private var domainInput = "www.qq.com"
-    @State private var selectedRecordType: DNSRecordType = .systemDefault
+    @State private var selectedRecordType: DNSRecordType = .A
+    @State private var selectedDNSServer: String = "system"
     @State private var showHistory = false
     @State private var showCopyToast = false
     @State private var showMoreRecordTypes = false
@@ -20,8 +21,13 @@ struct DNSView: View {
     
     private var l10n: L10n { L10n.shared }
     
+    // DNS 服务器列表
+    private var dnsServers: [(String, String)] {
+        DNSManager.commonDNSServers
+    }
+    
     // 主要记录类型
-    private let primaryRecordTypes: [DNSRecordType] = [.systemDefault, .A, .AAAA, .CNAME]
+    private let primaryRecordTypes: [DNSRecordType] = [.A, .AAAA, .CNAME]
     // 更多记录类型
     private let moreRecordTypes: [DNSRecordType] = [.MX, .TXT, .NS, .PTR]
     
@@ -119,13 +125,38 @@ struct DNSView: View {
                             .cornerRadius(8)
                     }
                 }
+                
+                // DNS 服务器选择
+                HStack(spacing: 8) {
+                    Text("\(l10n.dnsServer):")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(dnsServers, id: \.1) { server in
+                                Button {
+                                    selectedDNSServer = server.1
+                                } label: {
+                                    Text(server.0)
+                                        .font(.caption)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(selectedDNSServer == server.1 ? Color.cyan : Color(.systemGray5))
+                                        .foregroundColor(selectedDNSServer == server.1 ? .white : .primary)
+                                        .cornerRadius(6)
+                                }
+                            }
+                        }
+                    }
+                }
             }
             .padding(.horizontal)
             
             // 结果列表
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Text("$ dig \(dnsManager.isQuerying || !dnsManager.results.isEmpty ? dnsManager.currentDomain : domainInput) \(selectedRecordType == .systemDefault ? "SYSTEM" : selectedRecordType.rawValue)")
+                    Text("$ dig \(dnsManager.isQuerying || !dnsManager.results.isEmpty ? dnsManager.currentDomain : domainInput) \(selectedRecordType.rawValue)")
                         .font(.system(.caption, design: .monospaced))
                         .foregroundColor(.green)
                     Spacer()
@@ -262,7 +293,14 @@ struct DNSView: View {
     private func startQuery() {
         guard !domainInput.isEmpty else { return }
         historyManager.addDNSHistory(domainInput)
-        dnsManager.query(domain: domainInput, recordType: selectedRecordType)
+        
+        if selectedDNSServer == "system" {
+            // 使用系统 DNS
+            dnsManager.query(domain: domainInput, recordType: selectedRecordType)
+        } else {
+            // 使用指定 DNS 服务器
+            dnsManager.queryWithServer(domain: domainInput, recordType: selectedRecordType, server: selectedDNSServer)
+        }
     }
     
     private func showCopyToastAnimation() {
@@ -519,7 +557,7 @@ struct RecordTypePicker: View {
                     selectedRecordType = moreRecordTypes.first ?? .MX
                 case .back:
                     showMoreRecordTypes = false
-                    selectedRecordType = primaryRecordTypes.first ?? .systemDefault
+                    selectedRecordType = primaryRecordTypes.first ?? .A
                 }
             }
         )) {

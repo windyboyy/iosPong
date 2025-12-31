@@ -17,10 +17,7 @@ extension Color {
 struct QuickDiagnosisView: View {
     @EnvironmentObject var languageManager: LanguageManager
     @ObservedObject private var manager = QuickDiagnosisManager.shared
-    @ObservedObject private var userManager = UserManager.shared
-    @State private var diagnosisCode: String = ""
-    @State private var showLoginSheet = false
-    @State private var pendingCode: String = ""
+    @State private var targetAddress: String = ""
     @FocusState private var isInputFocused: Bool
     
     private var l10n: L10n { L10n.shared }
@@ -28,10 +25,8 @@ struct QuickDiagnosisView: View {
     var body: some View {
         Group {
             switch manager.state {
-            case .idle, .loading:
+            case .idle:
                 inputView
-            case .loaded:
-                taskPreviewView
             case .running:
                 executionView
             case .completed:
@@ -50,20 +45,9 @@ struct QuickDiagnosisView: View {
             // 页面消失时也重置，确保下次进入是干净状态
             manager.reset()
         }
-        .sheet(isPresented: $showLoginSheet) {
-            LoginView {
-                // 登录成功后，继续执行诊断
-                if !pendingCode.isEmpty {
-                    Task {
-                        await manager.fetchDiagnosisExample(code: pendingCode)
-                        pendingCode = ""
-                    }
-                }
-            }
-        }
     }
     
-    // MARK: - 输入诊断码视图
+    // MARK: - 输入地址视图
     private var inputView: some View {
         VStack(spacing: 32) {
             // 顶部说明
@@ -88,128 +72,33 @@ struct QuickDiagnosisView: View {
                     .font(.title)
                     .fontWeight(.bold)
                 
-                Text(l10n.enterDiagnosisCode)
+                Text(l10n.enterTargetAddress)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
             .padding(.top, 40)
             
-            // 6位数字输入框
-            HStack(spacing: 12) {
-                ForEach(0..<6, id: \.self) { index in
-                    DiagnosisCodeDigitView(
-                        digit: getDigit(at: index),
-                        isActive: diagnosisCode.count == index
-                    )
-                }
-            }
-            .padding(.horizontal)
-            .onTapGesture {
-                isInputFocused = true
-            }
-            
-            // 隐藏的输入框
-            TextField("", text: $diagnosisCode)
-                .keyboardType(.numberPad)
-                .focused($isInputFocused)
-                .opacity(0)
-                .frame(width: 0, height: 0)
-                .onChange(of: diagnosisCode) { _, newValue in
-                    // 数字键盘只输入数字，只需限制长度
-                    if newValue.count > 6 {
-                        diagnosisCode = String(newValue.prefix(6))
-                        return
-                    }
-                    
-                    // 输入完成6位后检查登录状态
-                    if newValue.count == 6 {
-                        if userManager.isLoggedIn {
-                            // 已登录，直接获取诊断案例
-                            Task {
-                                await manager.fetchDiagnosisExample(code: newValue)
-                            }
-                        } else {
-                            // 未登录，保存诊断码并弹出登录页面
-                            pendingCode = newValue
-                            showLoginSheet = true
-                        }
-                    }
-                }
-            
-            // 加载指示器
-            if case .loading = manager.state {
-                ProgressView(l10n.fetchingDiagnosis)
+            // 地址输入框
+            VStack(spacing: 16) {
+                TextField(l10n.targetAddressPlaceholder, text: $targetAddress)
+                    .textFieldStyle(.plain)
+                    .font(.body)
                     .padding()
-            }
-            
-            // 提示信息
-            VStack(spacing: 8) {
-                Text(l10n.diagnosisCodeFromHuatuo)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            Spacer()
-        }
-    }
-    
-    // MARK: - 任务预览视图
-    private var taskPreviewView: some View {
-        VStack(spacing: 0) {
-            // 案例信息头部
-            if let example = manager.exampleData {
-                VStack(spacing: 12) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(example.taskName)
-                                .font(.headline)
-                            Text("\(l10n.diagnosisCode): \(example.uniqueKey)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        Spacer()
-                        if let reportId = manager.reportId {
-                            Text("Report #\(String(reportId))")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color(.systemGray5))
-                                .cornerRadius(4)
-                        }
-                    }
-                    
-                    Divider()
-                    
-                    HStack {
-                        Label("\(example.exampleDetail.count) \(l10n.probeTasks)", systemImage: "list.bullet")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                }
-                .padding()
-                .background(Color(.systemBackground))
-            }
-            
-            // 任务列表
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    if let example = manager.exampleData {
-                        ForEach(example.exampleDetail) { task in
-                            TaskPreviewCard(task: task)
-                        }
-                    }
-                }
-                .padding()
-            }
-            .background(Color(.systemGroupedBackground))
-            
-            // 开始诊断按钮
-            VStack {
+                    .background(Color(.systemBackground))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(isInputFocused ? Color.gradientBlue : Color(.systemGray4), lineWidth: isInputFocused ? 2 : 1)
+                    )
+                    .focused($isInputFocused)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
+                    .keyboardType(.URL)
+                
+                // 开始诊断按钮
                 Button {
                     Task {
-                        await manager.startDiagnosis()
+                        await manager.startDiagnosis(target: targetAddress.trimmingCharacters(in: .whitespacesAndNewlines))
                     }
                 } label: {
                     HStack {
@@ -222,16 +111,29 @@ struct QuickDiagnosisView: View {
                     .padding()
                     .background(
                         LinearGradient(
-                            colors: [Color.gradientBlue, Color.gradientPurple],
+                            colors: targetAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty 
+                                ? [Color.gray, Color.gray] 
+                                : [Color.gradientBlue, Color.gradientPurple],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
                     .cornerRadius(12)
                 }
+                .disabled(targetAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            .padding()
-            .background(Color(.systemBackground))
+            .padding(.horizontal)
+            
+            // 提示信息
+            VStack(spacing: 8) {
+                Text(l10n.diagnosisAddressHint)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal)
+            
+            Spacer()
         }
     }
     
@@ -267,11 +169,13 @@ struct QuickDiagnosisView: View {
                 Text(l10n.executingDiagnosis)
                     .font(.headline)
                 
-                if let example = manager.exampleData {
-                    Text("\(l10n.task) \(manager.currentTaskIndex + 1) / \(example.exampleDetail.count)")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
+                Text("\(l10n.task) \(manager.currentTaskIndex + 1) / \(manager.totalTasks)")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                Text(manager.targetAddress)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             .padding(.vertical, 32)
             .frame(maxWidth: .infinity)
@@ -316,11 +220,9 @@ struct QuickDiagnosisView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 
-                if let reportId = manager.reportId {
-                    Text("\(l10n.resultLinkedToReport) #\(String(reportId))")
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                }
+                Text(manager.targetAddress)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             .padding(.vertical, 20)
             .frame(maxWidth: .infinity)
@@ -341,7 +243,7 @@ struct QuickDiagnosisView: View {
             VStack(spacing: 12) {
                 Button {
                     manager.reset()
-                    diagnosisCode = ""
+                    targetAddress = ""
                     isInputFocused = true
                 } label: {
                     HStack {
@@ -382,7 +284,7 @@ struct QuickDiagnosisView: View {
                     .foregroundColor(.red)
             }
             
-            Text(l10n.fetchFailed)
+            Text(l10n.diagnosisFailed)
                 .font(.title2)
                 .fontWeight(.bold)
             
@@ -394,7 +296,7 @@ struct QuickDiagnosisView: View {
             
             Button {
                 manager.reset()
-                diagnosisCode = ""
+                targetAddress = ""
                 isInputFocused = true
             } label: {
                 HStack {
@@ -422,47 +324,8 @@ struct QuickDiagnosisView: View {
     // MARK: - 辅助方法
     private func resetState() {
         manager.reset()
-        diagnosisCode = ""
+        targetAddress = ""
         isInputFocused = true
-    }
-    
-    private func getDigit(at index: Int) -> String {
-        let chars = Array(diagnosisCode)
-        guard index < chars.count else { return "" }
-        return String(chars[index])
-    }
-}
-
-// MARK: - 诊断码单个数字视图
-struct DiagnosisCodeDigitView: View {
-    let digit: String
-    let isActive: Bool
-    
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
-                .frame(width: 48, height: 60)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(isActive ? Color.gradientBlue : Color(.systemGray4), lineWidth: isActive ? 2 : 1)
-                )
-                .shadow(color: isActive ? .gradientBlue.opacity(0.3) : .clear, radius: 4)
-            
-            if digit.isEmpty {
-                if isActive {
-                    Rectangle()
-                        .fill(Color.gradientBlue)
-                        .frame(width: 2, height: 24)
-                }
-            } else {
-                Text(digit)
-                    .font(.title)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
-            }
-        }
-        .animation(.none, value: digit)  // 禁用动画避免卡顿
     }
 }
 

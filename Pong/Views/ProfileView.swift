@@ -10,9 +10,6 @@ import SwiftUI
 struct ProfileView: View {
     @StateObject private var userManager = UserManager.shared
     @EnvironmentObject var languageManager: LanguageManager
-    @State private var showLoginSheet = false
-    @State private var showLogoutAlert = false
-    @State private var showLoginSuccessToast = false
     
     private var l10n: L10n { L10n.shared }
     
@@ -21,7 +18,7 @@ struct ProfileView: View {
             List {
                 // 用户信息区域
                 Section {
-                    if userManager.isLoggedIn, let user = userManager.currentUser {
+                    if let user = userManager.currentUser {
                         HStack(spacing: 16) {
                             // 头像
                             ZStack {
@@ -41,46 +38,11 @@ struct ProfileView: View {
                                 Text("ID: \(String(user.userId))")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
-                                
-                                // 用户类型标签
-                                userTypeLabel(for: user)
                             }
                             
                             Spacer()
                         }
                         .padding(.vertical, 8)
-                    } else {
-                        Button {
-                            showLoginSheet = true
-                        } label: {
-                            HStack(spacing: 16) {
-                                ZStack {
-                                    Circle()
-                                        .fill(Color.gray.opacity(0.2))
-                                        .frame(width: 60, height: 60)
-                                    
-                                    Image(systemName: "person.fill")
-                                        .font(.title)
-                                        .foregroundColor(.gray)
-                                }
-                                
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(l10n.clickToLogin)
-                                        .font(.headline)
-                                    
-                                    Text(l10n.loginToUseCloud)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                                
-                                Spacer()
-                                
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding(.vertical, 8)
-                        }
-                        .foregroundColor(.primary)
                     }
                 }
                 
@@ -116,81 +78,9 @@ struct ProfileView: View {
                         Label(l10n.about, systemImage: "info.circle")
                     }
                 }
-                
-                // 登出按钮
-                if userManager.isLoggedIn {
-                    Section {
-                        Button(role: .destructive) {
-                            showLogoutAlert = true
-                        } label: {
-                            HStack {
-                                Spacer()
-                                Text(l10n.logout)
-                                Spacer()
-                            }
-                        }
-                    }
-                }
             }
             .navigationTitle("")
             .navigationBarHidden(true)
-            .sheet(isPresented: $showLoginSheet) {
-                LoginView {
-                    showLoginSuccessToast = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        showLoginSuccessToast = false
-                    }
-                }
-            }
-            .overlay {
-                if showLoginSuccessToast {
-                    VStack {
-                        Spacer()
-                        Text(l10n.loginSuccess)
-                            .font(.subheadline)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 12)
-                            .background(Color.black.opacity(0.75))
-                            .cornerRadius(8)
-                            .padding(.bottom, 100)
-                    }
-                    .transition(.opacity)
-                    .animation(.easeInOut, value: showLoginSuccessToast)
-                }
-            }
-            .alert(l10n.confirmLogout, isPresented: $showLogoutAlert) {
-                Button(l10n.cancel, role: .cancel) { }
-                Button(l10n.exit, role: .destructive) {
-                    userManager.logout()
-                }
-            } message: {
-                Text(l10n.confirmLogoutMessage)
-            }
-        }
-    }
-    
-    // MARK: - 用户类型标签
-    @ViewBuilder
-    private func userTypeLabel(for user: UserInfo) -> some View {
-        if user.isGuest {
-            // 游客 - 橙色
-            Text(l10n.guestAccount)
-                .font(.caption2)
-                .foregroundColor(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 2)
-                .background(Color.orange)
-                .cornerRadius(4)
-        } else if let accountType = AccountUserType.from(user.userType) {
-            // 社区版/定制版
-            Text(accountType.title(l10n))
-                .font(.caption2)
-                .foregroundColor(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 2)
-                .background(accountType.color)
-                .cornerRadius(4)
         }
     }
 }
@@ -203,13 +93,6 @@ struct HelpView: View {
     var body: some View {
         List {
             Section(l10n.faq) {
-                NavigationLink(l10n.whatIsCloudProbe) {
-                    HelpDetailView(
-                        title: l10n.whatIsCloudProbe,
-                        content: cloudProbeHelpContent
-                    )
-                }
-                
                 NavigationLink(l10n.howToUseDiagnosis) {
                     HelpDetailView(
                         title: l10n.howToUseDiagnosis,
@@ -236,34 +119,6 @@ struct HelpView: View {
         }
         .navigationTitle(l10n.helpCenter)
         .navigationBarTitleDisplayMode(.inline)
-    }
-    
-    private var cloudProbeHelpContent: String {
-        if languageManager.currentLanguage == .chinese {
-            return """
-            云探测是一项网络质量监测服务，通过分布在全球各地的云主机节点，对目标地址进行网络探测。
-            
-            支持的探测类型：
-            • Ping - 测试网络连通性和延迟
-            • DNS - 查询域名解析结果
-            • TCP - 测试TCP端口连通性
-            • UDP - 测试UDP端口连通性
-            
-            使用云探测，您可以了解从不同地区、不同运营商访问您的服务的网络质量。
-            """
-        } else {
-            return """
-            Cloud Probe is a network quality monitoring service that performs network probing on target addresses through cloud host nodes distributed around the world.
-            
-            Supported probe types:
-            • Ping - Test network connectivity and latency
-            • DNS - Query domain resolution results
-            • TCP - Test TCP port connectivity
-            • UDP - Test UDP port connectivity
-            
-            With Cloud Probe, you can understand the network quality of accessing your services from different regions and ISPs.
-            """
-        }
     }
     
     private var diagnosisHelpContent: String {

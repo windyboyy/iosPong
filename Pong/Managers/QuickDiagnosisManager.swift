@@ -59,23 +59,19 @@ struct DiagnosisTaskOptions: Codable {
 // MARK: - 诊断任务详情
 struct DiagnosisTaskDetail: Identifiable, Codable {
     let id: Int
-    let exampleId: String
     let msmType: String
     let target: String
     let port: String?  // 改为 String 类型
     let options: DiagnosisTaskOptions?
-    let userId: String?  // 可能为 null
     let af: Int?  // 地址族: 4=IPv4, 6=IPv6，默认 IPv4
     
     enum CodingKeys: String, CodingKey {
-        case id = "Id"
-        case exampleId = "ExampleId"
-        case msmType = "MsmType"
-        case target = "Target"
-        case port = "Port"
-        case options = "Options"
-        case userId = "UserId"
-        case af = "Af"
+        case id
+        case msmType
+        case target
+        case port
+        case options
+        case af
     }
     
     var taskType: DiagnosisTaskType? {
@@ -114,90 +110,6 @@ struct DiagnosisTaskDetail: Identifiable, Codable {
     }
 }
 
-// MARK: - 诊断案例数据
-struct DiagnosisExampleData: Codable {
-    let id: Int
-    let taskName: String
-    let uniqueKey: String
-    let userId: String
-    let createTime: String
-    let updateTime: String
-    let exampleDetail: [DiagnosisTaskDetail]
-    
-    enum CodingKeys: String, CodingKey {
-        case id = "Id"
-        case taskName = "TaskName"
-        case uniqueKey = "UniqueKey"
-        case userId = "UserId"
-        case createTime = "CreateTime"
-        case updateTime = "UpdateTime"
-        case exampleDetail = "ExampleDetail"
-    }
-}
-
-// MARK: - API 响应数据
-struct DiagnosisResponseData: Codable {
-    let data: [DiagnosisExampleData]
-    let reportId: Int
-    
-    enum CodingKeys: String, CodingKey {
-        case data = "Data"
-        case reportId = "ReportId"
-    }
-}
-
-// MARK: - API 响应
-struct DiagnosisAPIResponse: Codable {
-    let `return`: Int
-    let details: String
-    let reqId: String
-    let data: DiagnosisResponseData?
-    
-    enum CodingKeys: String, CodingKey {
-        case `return` = "Return"
-        case details = "Details"
-        case reqId = "ReqId"
-        case data = "Data"
-    }
-    
-    var isSuccess: Bool {
-        `return` == 0
-    }
-}
-
-// MARK: - 诊断请求体
-struct DiagnosisRequest: Encodable {
-    let action = "MsmExample"
-    let method = "GetMsmExample"
-    let systemId = "4"
-    let condition: DiagnosisCondition
-    let appendInfo: DiagnosisAppendInfo
-    
-    enum CodingKeys: String, CodingKey {
-        case action = "Action"
-        case method = "Method"
-        case systemId = "SystemId"
-        case condition = "Condition"
-        case appendInfo = "AppendInfo"
-    }
-}
-
-struct DiagnosisCondition: Encodable {
-    let uniqueKey: String
-    
-    enum CodingKeys: String, CodingKey {
-        case uniqueKey = "UniqueKey"
-    }
-}
-
-struct DiagnosisAppendInfo: Encodable {
-    let userId: Int
-    
-    enum CodingKeys: String, CodingKey {
-        case userId = "UserId"
-    }
-}
-
 // MARK: - 单个任务执行结果
 struct DiagnosisTaskResult: Identifiable {
     let id = UUID()
@@ -224,8 +136,6 @@ struct DiagnosisTaskResult: Identifiable {
 // MARK: - 诊断状态
 enum DiagnosisState {
     case idle
-    case loading           // 加载诊断码信息
-    case loaded            // 已加载，展示任务列表
     case running           // 正在执行探测
     case completed         // 所有探测完成
     case error(String)     // 出错
@@ -238,12 +148,11 @@ class QuickDiagnosisManager: ObservableObject {
     
     // MARK: - Published 属性
     @Published var state: DiagnosisState = .idle
-    @Published var diagnosisCode: String = ""
-    @Published var exampleData: DiagnosisExampleData?
-    @Published var reportId: Int?
+    @Published var targetAddress: String = ""
     @Published var taskResults: [UUID: DiagnosisTaskResult] = [:]
     @Published var currentTaskIndex: Int = 0
     @Published var progress: Double = 0
+    @Published var totalTasks: Int = 0
     
     // 各类型探测的 Manager
     private let pingManager = PingManager.shared
@@ -252,102 +161,141 @@ class QuickDiagnosisManager: ObservableObject {
     private let dnsManager = DNSManager.shared
     private let traceManager = TraceManager.shared
     
-    private let apiURL = APIConfig.apiURL
-    
     private init() {}
     
     // MARK: - 重置状态
     func reset() {
         state = .idle
-        diagnosisCode = ""
-        exampleData = nil
-        reportId = nil
+        targetAddress = ""
         taskResults = [:]
         currentTaskIndex = 0
         progress = 0
+        totalTasks = 0
     }
     
-    // MARK: - 获取诊断案例
-    func fetchDiagnosisExample(code: String) async {
+    // MARK: - 生成诊断任务列表
+    private func generateTasks(for target: String) -> [DiagnosisTaskDetail] {
+        var tasks: [DiagnosisTaskDetail] = []
+        var taskId = 1
+        
+        // 判断目标是否为 IP 地址
+        let isIPAddress = isValidIPAddress(target)
+        
+        // 1. DNS 查询（仅当目标是域名时）
+        if !isIPAddress {
+            tasks.append(DiagnosisTaskDetail(
+                id: taskId,
+                msmType: "dns",
+                target: target,
+                port: nil,
+                options: DiagnosisTaskOptions(count: nil, size: nil, timeout: nil, rtype: "A", ns: nil),
+                af: 4
+            ))
+            taskId += 1
+        }
+        
+        // 2. Ping 测试
+        tasks.append(DiagnosisTaskDetail(
+            id: taskId,
+            msmType: "ping",
+            target: target,
+            port: nil,
+            options: DiagnosisTaskOptions(count: 5, size: 56, timeout: nil, rtype: nil, ns: nil),
+            af: 4
+        ))
+        taskId += 1
+        
+        // 3. TCP 端口测试 (80)
+        tasks.append(DiagnosisTaskDetail(
+            id: taskId,
+            msmType: "tcp_port",
+            target: target,
+            port: "80",
+            options: DiagnosisTaskOptions(count: 1, size: nil, timeout: nil, rtype: nil, ns: nil),
+            af: 4
+        ))
+        taskId += 1
+        
+        // 4. TCP 端口测试 (443)
+        tasks.append(DiagnosisTaskDetail(
+            id: taskId,
+            msmType: "tcp_port",
+            target: target,
+            port: "443",
+            options: DiagnosisTaskOptions(count: 1, size: nil, timeout: nil, rtype: nil, ns: nil),
+            af: 4
+        ))
+        taskId += 1
+        
+        // 5. Traceroute
+        tasks.append(DiagnosisTaskDetail(
+            id: taskId,
+            msmType: "mtr",
+            target: target,
+            port: nil,
+            options: DiagnosisTaskOptions(count: 3, size: nil, timeout: nil, rtype: nil, ns: nil),
+            af: 4
+        ))
+        
+        return tasks
+    }
+    
+    // MARK: - 判断是否为有效 IP 地址
+    private func isValidIPAddress(_ string: String) -> Bool {
+        var sin = sockaddr_in()
+        var sin6 = sockaddr_in6()
+        
+        if string.withCString({ inet_pton(AF_INET, $0, &sin.sin_addr) }) == 1 {
+            return true
+        }
+        if string.withCString({ inet_pton(AF_INET6, $0, &sin6.sin6_addr) }) == 1 {
+            return true
+        }
+        return false
+    }
+    
+    // MARK: - 开始执行诊断
+    func startDiagnosis(target: String) async {
+        guard !target.isEmpty else {
+            state = .error("请输入目标地址")
+            return
+        }
+        
+        // 检查网络连接
+        let networkStatus = DeviceInfoManager.shared.networkStatus
+        guard networkStatus != .disconnected && networkStatus != .unknown else {
+            state = .error("无网络连接，请检查网络设置后重试")
+            return
+        }
+        
+        // 保存目标地址
+        targetAddress = target
+        
+        // 生成诊断任务
+        let tasks = generateTasks(for: target)
+        totalTasks = tasks.count
+        
         // 清空之前的状态
         taskResults = [:]
         currentTaskIndex = 0
         progress = 0
         
-        diagnosisCode = code
-        state = .loading
-        
-        let request = DiagnosisRequest(
-            condition: DiagnosisCondition(uniqueKey: code),
-            appendInfo: DiagnosisAppendInfo(userId: UserManager.shared.currentUserId)
-        )
-        
-        let auth = APIConfig.defaultAuth
-        
-        do {
-            let response: DiagnosisAPIResponse = try await NetworkService.shared.post(
-                url: apiURL,
-                json: request,
-                auth: auth
+        // 初始化任务结果
+        for task in tasks {
+            let result = DiagnosisTaskResult(
+                taskDetail: task,
+                status: .pending,
+                resultData: nil,
+                error: nil,
+                startTime: Date(),
+                endTime: nil
             )
-            
-            if response.isSuccess, let data = response.data, let example = data.data.first {
-                exampleData = example
-                reportId = data.reportId
-                state = .loaded
-                
-                // 初始化任务结果
-                for task in example.exampleDetail {
-                    let result = DiagnosisTaskResult(
-                        taskDetail: task,
-                        status: .pending,
-                        resultData: nil,
-                        error: nil,
-                        startTime: Date(),
-                        endTime: nil
-                    )
-                    taskResults[result.id] = result
-                }
-            } else {
-                state = .error(response.details.isEmpty ? "未找到诊断案例" : response.details)
-            }
-        } catch {
-            state = .error("获取诊断案例失败: \(error.localizedDescription)")
-        }
-    }
-    
-    // MARK: - 开始执行诊断
-    func startDiagnosis() async {
-        guard let example = exampleData else { return }
-        
-        // 检查网络连接
-        let networkStatus = DeviceInfoManager.shared.networkStatus
-        guard networkStatus != .disconnected && networkStatus != .unknown else {
-            state = .completed
-            // 标记所有任务为失败
-            for task in example.exampleDetail {
-                if let resultId = taskResults.first(where: { $0.value.taskDetail.id == task.id })?.key {
-                    let failedResult = DiagnosisTaskResult(
-                        taskDetail: task,
-                        status: .failed,
-                        resultData: nil,
-                        error: "无网络连接，请检查网络设置后重试",
-                        startTime: Date(),
-                        endTime: Date()
-                    )
-                    taskResults[resultId] = failedResult
-                }
-            }
-            return
+            taskResults[result.id] = result
         }
         
         state = .running
-        currentTaskIndex = 0
-        progress = 0
         
-        let totalTasks = example.exampleDetail.count
-        
-        for (index, task) in example.exampleDetail.enumerated() {
+        for (index, task) in tasks.enumerated() {
             currentTaskIndex = index
             progress = Double(index) / Double(totalTasks)
             
@@ -357,9 +305,6 @@ class QuickDiagnosisManager: ObservableObject {
         }
         
         state = .completed
-        
-        // 上传结果（TODO: 等待用户提供上传方法）
-        await uploadResults()
     }
     
     // MARK: - 执行单个任务
@@ -746,185 +691,6 @@ class QuickDiagnosisManager: ObservableObject {
             reachedTarget: traceManager.isComplete,
             error: nil
         )
-    }
-    
-    // MARK: - 上传结果
-    func uploadResults() async {
-        guard let example = exampleData, let reportId = reportId else {
-            print("缺少诊断数据或 ReportId")
-            return
-        }
-        
-        print("准备上传诊断结果，ReportId: \(reportId)")
-        print("任务结果数量: \(taskResults.count)")
-        
-        // 获取公网 IP 信息
-        var ipInfo: IPInfoResponse? = nil
-        do {
-            ipInfo = try await IPInfoManager.shared.fetchIPInfo()
-        } catch {
-            print("获取公网 IP 信息失败: \(error)")
-        }
-        
-        let source = ReportDataBuilder.ReportSource.diagnosis(uniqueKey: example.uniqueKey, reportId: reportId)
-        var msmDataList: [[String: Any]] = []
-        
-        for result in taskResults.values {
-            guard result.status == .success || result.status == .failed else { continue }
-            
-            let errorMsg = result.status == .failed ? result.error : nil
-            let useIPv6 = result.taskDetail.useIPv6
-            
-            switch result.taskDetail.taskType {
-            case .ping:
-                if let pingResult = result.resultData as? PingProbeResult {
-                    // 计算标准差
-                    var stdDev: TimeInterval? = nil
-                    if pingResult.successCount > 1 {
-                        let latencies = pingResult.results.compactMap { $0.latency }
-                        if let avg = pingResult.avgLatency, !latencies.isEmpty {
-                            let variance = latencies.reduce(0) { $0 + pow($1 - avg, 2) } / Double(latencies.count)
-                            stdDev = sqrt(variance)
-                        }
-                    }
-                    
-                    let data = ReportDataBuilder.buildPingData(
-                        target: pingResult.target,
-                        packetSize: pingResult.packetSize,
-                        count: pingResult.count,
-                        successCount: pingResult.successCount,
-                        avgLatency: pingResult.avgLatency,
-                        minLatency: pingResult.minLatency,
-                        maxLatency: pingResult.maxLatency,
-                        stdDev: stdDev,
-                        lossRate: pingResult.lossRate,
-                        results: pingResult.results.map { ($0.sequence, $0.success, $0.latency) },
-                        resolvedIP: pingResult.resolvedIP,
-                        source: source,
-                        timestamp: Date(),
-                        duration: result.duration,
-                        errorMessage: errorMsg,
-                        ipInfo: ipInfo,
-                        useIPv6: useIPv6
-                    )
-                    msmDataList.append(["MsmType": "ping", "MsmDatas": data])
-                }
-                
-            case .tcp:
-                if let tcpResult = result.resultData as? TCPProbeResult {
-                    let data = ReportDataBuilder.buildTCPData(
-                        target: tcpResult.target,
-                        port: tcpResult.port,
-                        isOpen: tcpResult.isOpen,
-                        latency: tcpResult.latency,
-                        count: tcpResult.count,
-                        successCount: tcpResult.successCount,
-                        failedCount: tcpResult.failedCount,
-                        source: source,
-                        timestamp: Date(),
-                        duration: result.duration,
-                        errorMessage: tcpResult.error ?? errorMsg,
-                        ipInfo: ipInfo,
-                        useIPv6: useIPv6
-                    )
-                    msmDataList.append(["MsmType": "tcp_port", "MsmDatas": data])
-                }
-                
-            case .udp:
-                if let udpResult = result.resultData as? UDPProbeResult {
-                    let data = ReportDataBuilder.buildUDPData(
-                        target: udpResult.target,
-                        port: udpResult.port,
-                        sent: udpResult.sent,
-                        received: udpResult.received,
-                        latency: udpResult.latency,
-                        count: udpResult.count,
-                        successCount: udpResult.successCount,
-                        failedCount: udpResult.failedCount,
-                        source: source,
-                        timestamp: Date(),
-                        duration: result.duration,
-                        errorMessage: udpResult.error ?? errorMsg,
-                        ipInfo: ipInfo,
-                        useIPv6: useIPv6
-                    )
-                    msmDataList.append(["MsmType": "udp_port", "MsmDatas": data])
-                }
-                
-            case .dns:
-                if let dnsResult = result.resultData as? DNSProbeResult {
-                    let data = ReportDataBuilder.buildDNSData(
-                        domain: dnsResult.domain,
-                        recordType: dnsResult.recordType,
-                        records: dnsResult.records,
-                        recordDetails: nil,
-                        latency: dnsResult.latency,
-                        server: dnsResult.server,
-                        digOutput: dnsResult.digOutput,
-                        source: source,
-                        timestamp: Date(),
-                        duration: result.duration,
-                        errorMessage: dnsResult.error ?? errorMsg,
-                        ipInfo: ipInfo
-                    )
-                    msmDataList.append(["MsmType": "dns", "MsmDatas": data])
-                }
-                
-            case .trace:
-                if let traceResult = result.resultData as? TraceProbeResult {
-                    let data = ReportDataBuilder.buildTraceData(
-                        target: traceResult.target,
-                        hops: traceResult.hops.map { ($0.hop, $0.ip, $0.hostname, $0.avgLatency, $0.lossRate, $0.sentCount, $0.receivedCount, $0.location) },
-                        reachedTarget: traceResult.reachedTarget,
-                        source: source,
-                        timestamp: Date(),
-                        duration: result.duration,
-                        errorMessage: traceResult.error ?? errorMsg,
-                        ipInfo: ipInfo,
-                        useIPv6: useIPv6
-                    )
-                    msmDataList.append(["MsmType": "mtr", "MsmDatas": data])
-                }
-                
-            case .none:
-                break
-            }
-        }
-        
-        guard !msmDataList.isEmpty else {
-            print("没有需要上报的数据")
-            return
-        }
-        
-        // 构建请求体
-        let requestBody: [String: Any] = [
-            "Action": "MsmReceive",
-            "Method": "BatchRun",
-            "SystemId": APIConfig.systemId,
-            "AppendInfo": [
-                "UserId": UserManager.shared.currentUserId
-            ],
-            "Data": msmDataList
-        ]
-        
-        do {
-            let jsonData = try JSONSerialization.data(withJSONObject: requestBody)
-            
-            let auth = APIConfig.defaultAuth
-            
-            let responseData = try await NetworkService.shared.post(
-                url: apiURL,
-                body: jsonData,
-                headers: ["Content-Type": "application/json"],
-                auth: auth
-            )
-            
-            if let responseStr = String(data: responseData, encoding: .utf8) {
-                print("上报结果响应: \(responseStr)")
-            }
-        } catch {
-            print("上报失败: \(error.localizedDescription)")
-        }
     }
 }
 

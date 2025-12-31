@@ -363,13 +363,46 @@ class DNSManager: ObservableObject {
     private func performDNSQuery(domain: String, recordType: DNSRecordType) async -> DNSResult {
         let startTime = Date()
         
+        // 如果查询 A 或 AAAA 记录，先查询 CNAME 以获取完整解析链
+        var allRecords: [DNSRecord] = []
+        if recordType == .A || recordType == .AAAA {
+            let cnameRecords = await performSingleDNSQuery(domain: domain, recordType: .CNAME)
+            allRecords.append(contentsOf: cnameRecords)
+        }
+        
+        // 查询目标记录类型
+        let targetRecords = await performSingleDNSQuery(domain: domain, recordType: recordType)
+        allRecords.append(contentsOf: targetRecords)
+        
+        // 更新 isPrimary 标记
+        var finalRecords: [DNSRecord] = []
+        for (index, record) in allRecords.enumerated() {
+            var r = record
+            r.isPrimary = (index == 0)
+            finalRecords.append(r)
+        }
+        
+        let latency = Date().timeIntervalSince(startTime)
+        
+        return DNSResult(
+            domain: domain,
+            recordType: recordType,
+            records: finalRecords,
+            latency: latency,
+            server: "系统 DNS",
+            error: finalRecords.isEmpty ? "未找到 \(recordType.rawValue) 记录" : nil,
+            timestamp: Date()
+        )
+    }
+    
+    /// 执行单次 DNS 查询（不包含 CNAME 链）
+    private func performSingleDNSQuery(domain: String, recordType: DNSRecordType) async -> [DNSRecord] {
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 var sdRef: DNSServiceRef?
                 let rrType = recordType.dnssdType
                 
                 var records: [DNSRecord] = []
-                var queryError: String? = nil
                 
                 // 用于存储原始数据：(fullname, rrtype, ttl, rdata)
                 var rawDataList: [(String?, UInt16, UInt32, Data)] = []
@@ -409,7 +442,6 @@ class DNSManager: ObservableObject {
                         DNSServiceProcessResult(sdRef)
                         
                         // 在回调外部解析数据
-                        var isFirst = true
                         for (name, rrtype, ttl, data) in rawDataList {
                             let typeString = DNSManager.rrTypeToString(rrtype)
                             let value = DNSManager.parseRData(type: rrtype, data: data) ?? "(无法解析)"
@@ -421,37 +453,16 @@ class DNSManager: ObservableObject {
                                 ttl: ttl,
                                 value: value,
                                 rawData: data,
-                                isPrimary: isFirst
+                                isPrimary: false
                             )
                             records.append(record)
-                            isFirst = false
                         }
-                    } else {
-                        queryError = "查询超时"
                     }
                     
                     DNSServiceRefDeallocate(sdRef)
-                } else {
-                    queryError = "DNS 查询失败: \(result)"
                 }
                 
-                if records.isEmpty && queryError == nil {
-                    queryError = "未找到 \(recordType.rawValue) 记录"
-                }
-                
-                let latency = Date().timeIntervalSince(startTime)
-                
-                let dnsResult = DNSResult(
-                    domain: domain,
-                    recordType: recordType,
-                    records: records,
-                    latency: latency,
-                    server: "系统 DNS",
-                    error: queryError,
-                    timestamp: Date()
-                )
-                
-                continuation.resume(returning: dnsResult)
+                continuation.resume(returning: records)
             }
         }
     }
@@ -669,24 +680,24 @@ class DNSManager: ObservableObject {
         return DNSResult(from: result, records: updatedRecords)
     }
     
-    // MARK: - 常用 DNS 服务器
+    // MARK: - 常用 DNS 服务器 (DoH endpoints + UDP)
     
     static let commonDNSServers: [(String, String)] = [
         ("系统默认", "system"),
-        ("Google", "8.8.8.8"),
-        ("Cloudflare", "1.1.1.1"),
-        ("阿里 DNS", "223.5.5.5"),
-        ("腾讯 DNS", "119.29.29.29"),
-        ("114 DNS", "114.114.114.114")
+        ("腾讯 DNS", "https://doh.pub/dns-query"),
+        ("阿里 DNS", "https://dns.alidns.com/resolve"),
+        ("Google", "https://dns.google/resolve"),
+        ("Cloudflare", "https://cloudflare-dns.com/dns-query"),
+        ("114 DNS", "udp://114.114.114.114")
     ]
     
     // MARK: - 指定 DNS 服务器查询
     
-    /// 使用指定的 DNS 服务器进行查询
+    /// 使用指定的 DNS 服务器进行查询 (通过 DoH 或 UDP)
     /// - Parameters:
     ///   - domain: 要查询的域名
     ///   - recordType: DNS 记录类型
-    ///   - server: DNS 服务器地址（如 "8.8.8.8"）
+    ///   - server: DoH 服务器 URL 或 UDP 服务器地址 (udp://x.x.x.x)
     func queryWithServer(domain: String, recordType: DNSRecordType = .A, server: String) {
         stopQuery()
         
@@ -731,7 +742,17 @@ class DNSManager: ObservableObject {
         startTime = Date()
         
         queryTask = Task {
-            var result = await performDNSQueryWithServer(domain: queryDomain, recordType: recordType, server: server)
+            var result: DNSResult
+            
+            // 根据服务器类型选择查询方式
+            if server.hasPrefix("udp://") {
+                // UDP 方式
+                let udpServer = String(server.dropFirst(6))
+                result = await performUDPQuery(domain: queryDomain, recordType: recordType, server: udpServer)
+            } else {
+                // DoH 方式
+                result = await performDoHQuery(domain: queryDomain, recordType: recordType, server: server)
+            }
             
             // PTR 查询结果中保留原始 IP
             if recordType == .PTR && domain != queryDomain {
@@ -759,9 +780,140 @@ class DNSManager: ObservableObject {
         }
     }
     
-    /// 使用 UDP 向指定 DNS 服务器发送查询
-    private func performDNSQueryWithServer(domain: String, recordType: DNSRecordType, server: String) async -> DNSResult {
+    /// 使用 DNS over HTTPS (DoH) 查询
+    private func performDoHQuery(domain: String, recordType: DNSRecordType, server: String) async -> DNSResult {
         let startTime = Date()
+        
+        // 根据服务器 URL 构建请求
+        let typeParam = recordType == .systemDefault ? "A" : recordType.rawValue
+        
+        // 提取服务器名称用于显示
+        let serverName = DNSManager.commonDNSServers.first { $0.1 == server }?.0 ?? server
+        
+        // 构建 URL（支持 Google/阿里 JSON API 和 Cloudflare/腾讯 DoH）
+        var urlString: String
+        if server.contains("dns.google") || server.contains("alidns.com") {
+            // Google 和阿里使用 JSON API
+            urlString = "\(server)?name=\(domain)&type=\(typeParam)"
+        } else {
+            // Cloudflare 和腾讯使用标准 DoH (JSON 格式)
+            urlString = "\(server)?name=\(domain)&type=\(typeParam)"
+        }
+        
+        guard let url = URL(string: urlString) else {
+            return DNSResult(
+                domain: domain,
+                recordType: recordType,
+                records: [],
+                latency: Date().timeIntervalSince(startTime),
+                server: serverName,
+                error: "无效的 DNS 服务器 URL",
+                timestamp: Date()
+            )
+        }
+        
+        var request = URLRequest(url: url)
+        request.setValue("application/dns-json", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = 10
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                return DNSResult(
+                    domain: domain,
+                    recordType: recordType,
+                    records: [],
+                    latency: Date().timeIntervalSince(startTime),
+                    server: serverName,
+                    error: "服务器返回错误",
+                    timestamp: Date()
+                )
+            }
+            
+            // 解析 JSON 响应
+            let records = parseDoHResponse(data: data, domain: domain, recordType: recordType)
+            
+            let latency = Date().timeIntervalSince(startTime)
+            
+            return DNSResult(
+                domain: domain,
+                recordType: recordType,
+                records: records,
+                latency: latency,
+                server: serverName,
+                error: records.isEmpty ? "未找到 \(typeParam) 记录" : nil,
+                timestamp: Date()
+            )
+        } catch {
+            return DNSResult(
+                domain: domain,
+                recordType: recordType,
+                records: [],
+                latency: Date().timeIntervalSince(startTime),
+                server: serverName,
+                error: "查询失败: \(error.localizedDescription)",
+                timestamp: Date()
+            )
+        }
+    }
+    
+    /// 解析 DoH JSON 响应
+    private func parseDoHResponse(data: Data, domain: String, recordType: DNSRecordType) -> [DNSRecord] {
+        var records: [DNSRecord] = []
+        
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let answers = json["Answer"] as? [[String: Any]] else {
+            return records
+        }
+        
+        var isFirst = true
+        for answer in answers {
+            guard let name = answer["name"] as? String,
+                  let type = answer["type"] as? Int,
+                  let ttl = answer["TTL"] as? Int,
+                  let value = answer["data"] as? String else {
+                continue
+            }
+            
+            let typeString = DNSManager.typeIntToString(type)
+            
+            let record = DNSRecord(
+                name: name.trimmingCharacters(in: CharacterSet(charactersIn: ".")),
+                type: UInt16(type),
+                typeString: typeString,
+                ttl: UInt32(ttl),
+                value: value.trimmingCharacters(in: CharacterSet(charactersIn: ".")),
+                rawData: Data(),
+                isPrimary: isFirst
+            )
+            records.append(record)
+            isFirst = false
+        }
+        
+        return records
+    }
+    
+    /// DNS 类型数字转字符串
+    private static func typeIntToString(_ type: Int) -> String {
+        switch type {
+        case 1: return "A"
+        case 28: return "AAAA"
+        case 5: return "CNAME"
+        case 15: return "MX"
+        case 16: return "TXT"
+        case 2: return "NS"
+        case 6: return "SOA"
+        case 12: return "PTR"
+        case 33: return "SRV"
+        default: return "TYPE\(type)"
+        }
+    }
+    
+    /// 使用 UDP 向指定 DNS 服务器发送查询
+    private func performUDPQuery(domain: String, recordType: DNSRecordType, server: String) async -> DNSResult {
+        let startTime = Date()
+        let serverName = DNSManager.commonDNSServers.first { $0.1 == "udp://\(server)" }?.0 ?? server
         
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
@@ -776,7 +928,7 @@ class DNSManager: ObservableObject {
                         recordType: recordType,
                         records: [],
                         latency: Date().timeIntervalSince(startTime),
-                        server: server,
+                        server: serverName,
                         error: "创建 socket 失败",
                         timestamp: Date()
                     )
@@ -812,7 +964,7 @@ class DNSManager: ObservableObject {
                         recordType: recordType,
                         records: [],
                         latency: Date().timeIntervalSince(startTime),
-                        server: server,
+                        server: serverName,
                         error: "发送查询失败",
                         timestamp: Date()
                     )
@@ -833,7 +985,7 @@ class DNSManager: ObservableObject {
                         queryError = "未找到 \(recordType.rawValue) 记录"
                     }
                 } else {
-                    queryError = "查询超时"
+                    queryError = "查询超时（UDP 53 端口可能被拦截）"
                 }
                 
                 let latency = Date().timeIntervalSince(startTime)
@@ -843,7 +995,7 @@ class DNSManager: ObservableObject {
                     recordType: recordType,
                     records: records,
                     latency: latency,
-                    server: server,
+                    server: serverName,
                     error: queryError,
                     timestamp: Date()
                 )

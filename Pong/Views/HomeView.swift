@@ -22,17 +22,17 @@ enum NetworkTool: CaseIterable, Identifiable {
     case trace
     case httpGet
     case deviceInfo
-    case speedTest
+    case connectionTest
     case packetCapture
     
     var id: String { 
         switch self {
-        case .speedTest: return "speedTest"
         case .ping: return "ping"
         case .trace: return "trace"
         case .tcp: return "tcp"
         case .udp: return "udp"
         case .dns: return "dns"
+        case .connectionTest: return "connectionTest"
         case .httpGet: return "httpGet"
         case .packetCapture: return "packetCapture"
         case .deviceInfo: return "deviceInfo"
@@ -41,12 +41,12 @@ enum NetworkTool: CaseIterable, Identifiable {
     
     func title(_ l10n: L10n) -> String {
         switch self {
-        case .speedTest: return l10n.speedTest
         case .ping: return l10n.ping
         case .trace: return l10n.traceroute
         case .tcp: return l10n.tcp
         case .udp: return l10n.udp
         case .dns: return l10n.dns
+        case .connectionTest: return l10n.connectionTest
         case .httpGet: return l10n.httpGet
         case .packetCapture: return l10n.packetCapture
         case .deviceInfo: return l10n.deviceInfo
@@ -55,12 +55,12 @@ enum NetworkTool: CaseIterable, Identifiable {
     
     var icon: String {
         switch self {
-        case .speedTest: return "speedometer"
         case .ping: return "network"
         case .trace: return "point.topleft.down.curvedto.point.bottomright.up"
         case .tcp: return "arrow.left.arrow.right"
         case .udp: return "paperplane"
         case .dns: return "server.rack"
+        case .connectionTest: return "bolt.horizontal.fill"
         case .httpGet: return "globe"
         case .packetCapture: return "antenna.radiowaves.left.and.right"
         case .deviceInfo: return "iphone.gen3"
@@ -69,12 +69,12 @@ enum NetworkTool: CaseIterable, Identifiable {
     
     var color: Color {
         switch self {
-        case .speedTest: return .red
         case .ping: return .blue
         case .trace: return .purple
         case .tcp: return .orange
         case .udp: return .green
         case .dns: return .cyan
+        case .connectionTest: return .mint
         case .httpGet: return .teal
         case .packetCapture: return .pink
         case .deviceInfo: return .indigo
@@ -83,12 +83,12 @@ enum NetworkTool: CaseIterable, Identifiable {
     
     func description(_ l10n: L10n) -> String {
         switch self {
-        case .speedTest: return l10n.speedTestDesc
         case .ping: return l10n.pingDesc
         case .trace: return l10n.tracerouteDesc
         case .tcp: return l10n.tcpDesc
         case .udp: return l10n.udpDesc
         case .dns: return l10n.dnsDesc
+        case .connectionTest: return l10n.connectionTestDesc
         case .httpGet: return l10n.httpGetDesc
         case .packetCapture: return l10n.packetCaptureDesc
         case .deviceInfo: return l10n.deviceInfoDesc
@@ -298,8 +298,6 @@ struct HomeView: View {
     @ViewBuilder
     private func destinationView(for tool: NetworkTool) -> some View {
         switch tool {
-        case .speedTest:
-            SpeedTestView()
         case .ping:
             PingView()
         case .trace:
@@ -310,6 +308,8 @@ struct HomeView: View {
             UDPView()
         case .dns:
             DNSView()
+        case .connectionTest:
+            ConnectionTestView()
         case .httpGet:
             HTTPGetView()
         case .packetCapture:

@@ -601,12 +601,12 @@ class TaskHistoryManager: ObservableObject {
     // MARK: - 上传历史记录
     private let apiURL = APIConfig.apiURL
     
-    /// 检查是否可以上传（需要登录且非游客）
+    /// 检查是否可以上传
     func canUpload() -> Bool {
         guard let user = UserManager.shared.currentUser else {
             return false
         }
-        return UserManager.shared.isLoggedIn && !user.isGuest
+        return !user.isGuest
     }
     
     /// 上传单条历史记录

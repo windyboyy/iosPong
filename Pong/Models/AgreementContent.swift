@@ -60,7 +60,6 @@ struct AgreementContent {
 
 iTango 网络探测（以下简称"本服务"）是由腾讯公司提供的网络质量监测工具，包括但不限于：
 • 本地网络诊断工具（Ping、路由追踪、DNS查询等）
-• 云探测服务（通过全球云主机节点进行网络探测）
 • 一键诊断服务
 
 二、用户注册与账号
@@ -252,7 +251,6 @@ Welcome to iTango Network Probe!
 
 iTango Network Probe (hereinafter referred to as "the Service") is a network quality monitoring tool provided by Tencent, including but not limited to:
 • Local network diagnostic tools (Ping, Traceroute, DNS Query, etc.)
-• Cloud probe service (network probing through global cloud server nodes)
 • One-click diagnosis service
 
 2. User Registration and Account

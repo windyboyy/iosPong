@@ -19,9 +19,6 @@ struct TaskHistoryView: View {
     @State private var uploadToastMessage = ""
     @State private var uploadToastSuccess = false
     @State private var showSwipeHint = false
-    @State private var showLoginSheet = false
-    @State private var pendingUploadRecord: TaskHistoryRecord?
-    @State private var pendingUploadAll = false
     
     private var l10n: L10n { L10n.shared }
     
@@ -143,23 +140,6 @@ struct TaskHistoryView: View {
         }
         .alert(l10n.swipeHint, isPresented: $showSwipeHint) {
             Button(l10n.confirm, role: .cancel) { }
-        }
-        .sheet(isPresented: $showLoginSheet) {
-            LoginView(selectedMethod: .phone, hideGuestLogin: true) {
-                // 登录成功后执行待上传操作
-                if pendingUploadAll {
-                    pendingUploadAll = false
-                    Task {
-                        await uploadAllRecords()
-                    }
-                } else if let record = pendingUploadRecord {
-                    pendingUploadRecord = nil
-                    Task {
-                        await uploadRecord(record)
-                    }
-                }
-            }
-            .environmentObject(languageManager)
         }
     }
     
@@ -296,29 +276,12 @@ struct TaskHistoryView: View {
     
     // MARK: - 上传单条记录
     private func uploadRecord(_ record: TaskHistoryRecord) async {
-        // 检查登录状态
+        // 检查是否为游客
         let userManager = UserManager.shared
-        if !userManager.isLoggedIn {
-            // 未登录，提示并弹出登录页面
-            uploadToastSuccess = false
-            uploadToastMessage = l10n.loginRequiredForUpload
-            showUploadToastAnimation()
-            pendingUploadRecord = record
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                showLoginSheet = true
-            }
-            return
-        }
-        
         if let user = userManager.currentUser, user.isGuest {
-            // 游客登录，提示并弹出登录页面
             uploadToastSuccess = false
             uploadToastMessage = l10n.guestCannotUpload
             showUploadToastAnimation()
-            pendingUploadRecord = record
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                showLoginSheet = true
-            }
             return
         }
         
@@ -337,29 +300,12 @@ struct TaskHistoryView: View {
     
     // MARK: - 上传所有记录
     private func uploadAllRecords() async {
-        // 检查登录状态
+        // 检查是否为游客
         let userManager = UserManager.shared
-        if !userManager.isLoggedIn {
-            // 未登录，提示并弹出登录页面
-            uploadToastSuccess = false
-            uploadToastMessage = l10n.loginRequiredForUpload
-            showUploadToastAnimation()
-            pendingUploadAll = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                showLoginSheet = true
-            }
-            return
-        }
-        
         if let user = userManager.currentUser, user.isGuest {
-            // 游客登录，提示并弹出登录页面
             uploadToastSuccess = false
             uploadToastMessage = l10n.guestCannotUpload
             showUploadToastAnimation()
-            pendingUploadAll = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                showLoginSheet = true
-            }
             return
         }
         
