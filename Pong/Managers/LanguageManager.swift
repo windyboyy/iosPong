@@ -312,6 +312,8 @@ struct L10n {
     var diagnosisTraceroute: String { lang == .chinese ? "路由追踪" : "Traceroute" }
     var diagnosisCount: String { lang == .chinese ? "次数" : "Count" }
     var diagnosisSize: String { lang == .chinese ? "大小" : "Size" }
+    var record: String { lang == .chinese ? "记录" : "Record" }
+    var packetsPerHop: String { lang == .chinese ? "包/跳" : "pkt/hop" }
     
     // MARK: - Ping 页面
     var enterHostOrIP: String { lang == .chinese ? "输入主机名或 IP" : "Enter hostname or IP" }
@@ -632,6 +634,7 @@ struct L10n {
     // MARK: - 通用错误
     var errorTitle: String { lang == .chinese ? "错误" : "Error" }
     var ok: String { lang == .chinese ? "确定" : "OK" }
+    var copied: String { lang == .chinese ? "已复制" : "Copied" }
     var unknownError: String { lang == .chinese ? "未知错误" : "Unknown Error" }
     
     // MARK: - 私有 IP

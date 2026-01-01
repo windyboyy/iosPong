@@ -35,47 +35,41 @@ struct QuickDiagnosisView: View {
                     } else {
                         diagnosisProgressCard
                             .id("top")
-                            .transition(.opacity)
                     }
                     
                     // 诊断任务列表（运行中或完成时显示）
                     if case .running = manager.state {
                         taskListSection
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
                     } else if case .completed = manager.state {
                         taskListSection
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                     
                     // 功能说明（仅在 idle 状态显示）
                     if manager.state == .idle {
                         featureDescriptionSection
-                            .transition(.opacity)
                     }
                     
                     // 底部操作按钮（完成时显示）
                     if case .completed = manager.state {
                         bottomActionSection
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                     
                     // 错误状态
                     if case .error(let message) = manager.state {
                         errorSection(message: message)
-                            .transition(.opacity)
                     }
                 }
                 .padding()
-                .animation(.easeInOut(duration: 0.3), value: manager.state)
             }
             .onChange(of: manager.state) { newState in
                 if case .running = newState {
-                    withAnimation {
+                    withAnimation(.easeOut(duration: 0.2)) {
                         proxy.scrollTo("top", anchor: .top)
                     }
                 }
             }
         }
+        .animation(.easeInOut(duration: 0.25), value: manager.state)
         .navigationTitle(l10n.quickDiagnosis)
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(isPresented: $showReportView) {
@@ -92,6 +86,12 @@ struct QuickDiagnosisView: View {
             } else {
                 // 如果是从报告页面返回，同步 manager 的地址到本地变量
                 targetAddress = manager.targetAddress
+            }
+        }
+        .onDisappear {
+            // 如果诊断正在运行中，取消诊断任务
+            if case .running = manager.state {
+                manager.cancelDiagnosis()
             }
         }
     }
@@ -557,7 +557,16 @@ struct TaskStatusCard: View {
     @EnvironmentObject var languageManager: LanguageManager
     let result: DiagnosisTaskResult
     
+    // Traceroute 倒计时相关
+    @State private var countdown: Int = 15
+    @State private var countdownTimer: Timer?
+    
     private var l10n: L10n { L10n.shared }
+    
+    // 是否为 Traceroute 任务
+    private var isTraceTask: Bool {
+        result.taskDetail.taskType == .trace
+    }
     
     var body: some View {
         HStack(spacing: 14) {
@@ -579,9 +588,25 @@ struct TaskStatusCard: View {
             
             // 任务信息
             VStack(alignment: .leading, spacing: 3) {
-                Text(result.taskDetail.taskType?.displayName ?? result.taskDetail.msmType)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.primary)
+                HStack(spacing: 6) {
+                    Text(result.taskDetail.taskType?.displayName ?? result.taskDetail.msmType)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.primary)
+                    
+                    // 参数标签
+                    let param = result.taskDetail.paramDescription
+                    if !param.isEmpty {
+                        Text(param)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(taskTypeColor.opacity(0.8))
+                            )
+                    }
+                }
                 
                 Text(result.taskDetail.target)
                     .font(.system(size: 12))
@@ -607,6 +632,38 @@ struct TaskStatusCard: View {
             RoundedRectangle(cornerRadius: 14)
                 .stroke(statusBorderColor, lineWidth: result.status == .running ? 1.5 : 1)
         )
+        .onChange(of: result.status) { newStatus in
+            if newStatus == .running && isTraceTask {
+                startCountdown()
+            } else {
+                stopCountdown()
+            }
+        }
+        .onAppear {
+            // 如果视图出现时任务已经在运行，启动倒计时
+            if result.status == .running && isTraceTask {
+                startCountdown()
+            }
+        }
+        .onDisappear {
+            stopCountdown()
+        }
+    }
+    
+    // MARK: - 倒计时控制
+    private func startCountdown() {
+        countdown = 15
+        stopCountdown()  // 先停止之前的计时器
+        countdownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            if countdown > 0 {
+                countdown -= 1
+            }
+        }
+    }
+    
+    private func stopCountdown() {
+        countdownTimer?.invalidate()
+        countdownTimer = nil
     }
     
     private var taskTypeColor: Color {
@@ -661,27 +718,53 @@ struct TaskStatusCard: View {
             )
             
         case .running:
-            HStack(spacing: 6) {
-                ProgressView()
-                    .scaleEffect(0.6)
-                    .frame(width: 12, height: 12)
-                    .tint(.white)
-                Text(l10n.running)
-                    .font(.system(size: 11, weight: .semibold))
-            }
-            .foregroundColor(.white)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [.gradientBlue, .gradientPurple],
-                            startPoint: .leading,
-                            endPoint: .trailing
+            // Traceroute 任务显示倒计时，其他任务显示普通运行状态
+            if isTraceTask {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .frame(width: 12, height: 12)
+                        .tint(.white)
+                    Text(countdown > 0 ? "~\(countdown)s" : l10n.running)
+                        .font(.system(size: 11, weight: .semibold))
+                        .monospacedDigit()
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [.purple, .gradientPurple],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
                         )
-                    )
-            )
+                )
+            } else {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .frame(width: 12, height: 12)
+                        .tint(.white)
+                    Text(l10n.running)
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [.gradientBlue, .gradientPurple],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                )
+            }
             
         case .success:
             HStack(spacing: 4) {

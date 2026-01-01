@@ -392,23 +392,7 @@ struct ReportTaskCard: View {
                 
                 let displayHops = getDisplayHops(result.hops)
                 ForEach(displayHops, id: \.hop) { hop in
-                    HStack {
-                        Text("\(hop.hop)")
-                            .font(.system(.caption, design: .monospaced))
-                            .frame(width: 24, alignment: .leading)
-                        
-                        Text(hop.ip)
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundColor(hop.ip == "*" ? .orange : .primary)
-                        
-                        Spacer()
-                        
-                        if let latency = hop.avgLatency {
-                            Text(String(format: "%.1fms", latency * 1000))
-                                .font(.system(.caption, design: .monospaced))
-                                .foregroundColor(.secondary)
-                        }
-                    }
+                    traceHopRow(hop)
                 }
                 
                 if result.hops.count > 6 {
@@ -418,6 +402,70 @@ struct ReportTaskCard: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
+        }
+    }
+    
+    // 单跳显示行
+    private func traceHopRow(_ hop: TraceHopResult) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            // 第一行：跳数、IP、延迟、丢包率
+            HStack {
+                Text("\(hop.hop)")
+                    .font(.system(.caption, design: .monospaced))
+                    .frame(width: 20, alignment: .leading)
+                
+                Text(hop.ip)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundColor(hop.ip == "*" ? .orange : .primary)
+                
+                Spacer()
+                
+                // 延迟
+                if let latency = hop.avgLatency {
+                    Text(String(format: "%.1fms", latency * 1000))
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(.secondary)
+                }
+                
+                // 丢包率
+                Text(String(format: "%.0f%%", hop.lossRate))
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundColor(lossRateColor(hop.lossRate))
+                    .frame(width: 36, alignment: .trailing)
+            }
+            
+            // 附加信息（PTR 和归属地分行显示）
+            if hop.ip != "*" {
+                VStack(alignment: .leading, spacing: 1) {
+                    // PTR 主机名
+                    if let hostname = hop.hostname, !hostname.isEmpty, hostname != hop.ip {
+                        Text(hostname)
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                    
+                    // 归属地
+                    if let location = hop.location, !location.isEmpty {
+                        Text(location)
+                            .font(.system(size: 10))
+                            .foregroundColor(.cyan)
+                    }
+                }
+                .padding(.leading, 20)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+    
+    // 丢包率颜色
+    private func lossRateColor(_ rate: Double) -> Color {
+        if rate == 0 {
+            return .green
+        } else if rate < 50 {
+            return .orange
+        } else {
+            return .red
         }
     }
     

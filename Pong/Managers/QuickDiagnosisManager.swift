@@ -88,6 +88,45 @@ struct DiagnosisTaskDetail: Identifiable, Codable {
         return af == 6
     }
     
+    /// 简短的参数描述（用于任务列表显示）
+    var paramDescription: String {
+        let l10n = L10n.shared
+        switch taskType {
+        case .dns:
+            // DNS: 显示记录类型
+            if let rtype = options?.rtype {
+                return "\(rtype) \(l10n.record)"
+            }
+            return ""
+        case .ping:
+            // Ping: 显示发包数
+            if let count = options?.count {
+                return "\(count) \(l10n.packets)"
+            }
+            return ""
+        case .tcp:
+            // TCP: 显示端口
+            if let port = port {
+                return "\(l10n.port) \(port)"
+            }
+            return ""
+        case .udp:
+            // UDP: 显示端口
+            if let port = port {
+                return "\(l10n.port) \(port)"
+            }
+            return ""
+        case .trace:
+            // Trace: 显示每跳发包数
+            if let count = options?.count {
+                return "\(count) \(l10n.packetsPerHop)"
+            }
+            return ""
+        case .none:
+            return ""
+        }
+    }
+    
     var displayDescription: String {
         let l10n = L10n.shared
         var desc = target
@@ -161,6 +200,13 @@ class QuickDiagnosisManager: ObservableObject {
     private let dnsManager = DNSManager.shared
     private let traceManager = TraceManager.shared
     
+    // 任务取消标志
+    private var currentDiagnosisTask: Task<Void, Never>?
+    private var isCancelled = false
+    
+    // 后台任务标识符
+    private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+    
     private init() {}
     
     // MARK: - 重置状态
@@ -171,6 +217,30 @@ class QuickDiagnosisManager: ObservableObject {
         currentTaskIndex = 0
         progress = 0
         totalTasks = 0
+        isCancelled = false
+        endBackgroundTask()
+    }
+    
+    // MARK: - 取消诊断
+    func cancelDiagnosis() {
+        isCancelled = true
+        currentDiagnosisTask?.cancel()
+        currentDiagnosisTask = nil
+        
+        // 停止所有正在进行的探测
+        pingManager.stopPing()
+        tcpManager.stopScan()
+        udpManager.stopTest()
+        dnsManager.stopQuery()
+        traceManager.stopTrace()
+        
+        // 结束后台任务
+        endBackgroundTask()
+        
+        // 如果正在运行，将状态设为 idle
+        if case .running = state {
+            state = .idle
+        }
     }
     
     // MARK: - 检查网络可达性
@@ -203,7 +273,7 @@ class QuickDiagnosisManager: ObservableObject {
         // 判断目标是否为 IP 地址
         let isIPAddress = isValidIPAddress(target)
         
-        // 1. DNS 查询（仅当目标是域名时）
+        // 1. DNS A 记录查询（仅当目标是域名时）
         if !isIPAddress {
             tasks.append(DiagnosisTaskDetail(
                 id: taskId,
@@ -214,9 +284,20 @@ class QuickDiagnosisManager: ObservableObject {
                 af: 4
             ))
             taskId += 1
+            
+            // 2. DNS AAAA 记录查询
+            tasks.append(DiagnosisTaskDetail(
+                id: taskId,
+                msmType: "dns",
+                target: target,
+                port: nil,
+                options: DiagnosisTaskOptions(count: nil, size: nil, timeout: nil, rtype: "AAAA", ns: nil),
+                af: 4
+            ))
+            taskId += 1
         }
         
-        // 2. Ping 测试
+        // 3. Ping 测试
         tasks.append(DiagnosisTaskDetail(
             id: taskId,
             msmType: "ping",
@@ -227,7 +308,7 @@ class QuickDiagnosisManager: ObservableObject {
         ))
         taskId += 1
         
-        // 3. TCP 端口测试 (80)
+        // 4. TCP 端口测试 (80)
         tasks.append(DiagnosisTaskDetail(
             id: taskId,
             msmType: "tcp_port",
@@ -238,7 +319,7 @@ class QuickDiagnosisManager: ObservableObject {
         ))
         taskId += 1
         
-        // 4. TCP 端口测试 (443)
+        // 5. TCP 端口测试 (443)
         tasks.append(DiagnosisTaskDetail(
             id: taskId,
             msmType: "tcp_port",
@@ -249,7 +330,7 @@ class QuickDiagnosisManager: ObservableObject {
         ))
         taskId += 1
         
-        // 5. Traceroute
+        // 6. Traceroute
         tasks.append(DiagnosisTaskDetail(
             id: taskId,
             msmType: "mtr",
@@ -283,28 +364,12 @@ class QuickDiagnosisManager: ObservableObject {
             return
         }
         
-        // 检查网络连接，如果状态为 unknown，等待一小段时间让网络监控器初始化
-        var networkStatus = DeviceInfoManager.shared.networkStatus
-        if networkStatus == .unknown {
-            // 等待最多 1 秒让网络状态更新
-            for _ in 0..<10 {
-                try? await Task.sleep(nanoseconds: 100_000_000)
-                networkStatus = DeviceInfoManager.shared.networkStatus
-                if networkStatus != .unknown {
-                    break
-                }
-            }
-        }
+        // 取消之前的任务
+        cancelDiagnosis()
+        isCancelled = false
         
-        // 如果等待后仍然是 unknown，尝试直接进行网络请求来验证
-        if networkStatus == .unknown || networkStatus == .disconnected {
-            // 尝试一个简单的网络请求来验证网络是否可用
-            let isReachable = await checkNetworkReachability()
-            if !isReachable {
-                state = .error("无网络连接，请检查网络设置后重试")
-                return
-            }
-        }
+        // 申请后台执行时间
+        beginBackgroundTask()
         
         // 保存目标地址
         targetAddress = target
@@ -318,7 +383,7 @@ class QuickDiagnosisManager: ObservableObject {
         currentTaskIndex = 0
         progress = 0
         
-        // 初始化任务结果
+        // 初始化任务结果（先创建所有任务为 pending 状态）
         for task in tasks {
             let result = DiagnosisTaskResult(
                 taskDetail: task,
@@ -331,22 +396,141 @@ class QuickDiagnosisManager: ObservableObject {
             taskResults[result.id] = result
         }
         
+        // 立即切换到 running 状态，让 UI 先响应
         state = .running
         
+        // 给 UI 一帧时间来完成动画
+        try? await Task.sleep(nanoseconds: 16_000_000)  // ~16ms = 1 frame at 60fps
+        
+        // 检查是否已取消
+        guard !isCancelled else {
+            endBackgroundTask()
+            return
+        }
+        
+        // 在后台检查网络连接
+        let networkOK = await checkNetworkInBackground()
+        
+        // 再次检查是否已取消
+        guard !isCancelled else {
+            endBackgroundTask()
+            return
+        }
+        
+        if !networkOK {
+            state = .error("无网络连接，请检查网络设置后重试")
+            endBackgroundTask()
+            return
+        }
+        
+        // 执行诊断任务
         for (index, task) in tasks.enumerated() {
+            // 检查是否已取消
+            guard !isCancelled else {
+                endBackgroundTask()
+                return
+            }
+            
             currentTaskIndex = index
             progress = Double(index) / Double(totalTasks)
             
             await executeTask(task)
             
+            // 检查是否已取消
+            guard !isCancelled else {
+                endBackgroundTask()
+                return
+            }
+            
             progress = Double(index + 1) / Double(totalTasks)
         }
         
+        // 最终检查是否已取消
+        guard !isCancelled else {
+            endBackgroundTask()
+            return
+        }
+        
         state = .completed
+        
+        // 诊断完成，结束后台任务
+        endBackgroundTask()
+    }
+    
+    // MARK: - 后台任务管理
+    private func beginBackgroundTask() {
+        // 先结束之前的后台任务（如果有）
+        endBackgroundTask()
+        
+        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "QuickDiagnosis") { [weak self] in
+            // 后台时间即将用尽，需要清理
+            Task { @MainActor in
+                self?.handleBackgroundTaskExpiration()
+            }
+        }
+        
+        print("开始后台任务，ID: \(backgroundTaskID.rawValue)")
+    }
+    
+    private func endBackgroundTask() {
+        guard backgroundTaskID != .invalid else { return }
+        
+        print("结束后台任务，ID: \(backgroundTaskID.rawValue)")
+        UIApplication.shared.endBackgroundTask(backgroundTaskID)
+        backgroundTaskID = .invalid
+    }
+    
+    private func handleBackgroundTaskExpiration() {
+        print("后台任务时间即将用尽")
+        
+        // 如果诊断还在运行，标记为已取消但不改变状态
+        // 这样用户回到前台时可以看到当前进度
+        if case .running = state {
+            // 停止所有探测，但保留已完成的结果
+            pingManager.stopPing()
+            tcpManager.stopScan()
+            udpManager.stopTest()
+            dnsManager.stopQuery()
+            traceManager.stopTrace()
+            
+            // 标记取消，防止后续任务继续执行
+            isCancelled = true
+        }
+        
+        endBackgroundTask()
+    }
+    
+    // MARK: - 后台检查网络（快速版本）
+    private func checkNetworkInBackground() async -> Bool {
+        // 快速检查：如果已知有网络，直接返回
+        let networkStatus = DeviceInfoManager.shared.networkStatus
+        if networkStatus == .wifi || networkStatus == .cellular {
+            return true
+        }
+        
+        // 如果状态是 unknown，短暂等待
+        if networkStatus == .unknown {
+            // 只等待 200ms
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            let updatedStatus = DeviceInfoManager.shared.networkStatus
+            if updatedStatus == .wifi || updatedStatus == .cellular {
+                return true
+            }
+        }
+        
+        // 如果仍然不确定，进行快速网络请求验证
+        if networkStatus == .unknown || networkStatus == .disconnected {
+            return await checkNetworkReachability()
+        }
+        
+        return networkStatus != .disconnected
     }
     
     // MARK: - 执行单个任务
     private func executeTask(_ task: DiagnosisTaskDetail) async {
+        // 检查是否已取消
+        guard !isCancelled else { return }
+        
         // 找到对应的结果记录
         guard let resultId = taskResults.first(where: { $0.value.taskDetail.id == task.id })?.key else {
             return
@@ -366,6 +550,9 @@ class QuickDiagnosisManager: ObservableObject {
         do {
             let resultData = try await performProbe(task)
             
+            // 检查是否已取消
+            guard !isCancelled else { return }
+            
             taskResults[resultId] = DiagnosisTaskResult(
                 taskDetail: task,
                 status: .success,
@@ -375,6 +562,9 @@ class QuickDiagnosisManager: ObservableObject {
                 endTime: Date()
             )
         } catch {
+            // 检查是否已取消
+            guard !isCancelled else { return }
+            
             taskResults[resultId] = DiagnosisTaskResult(
                 taskDetail: task,
                 status: .failed,
@@ -418,8 +608,13 @@ class QuickDiagnosisManager: ObservableObject {
         pingManager.startPing(host: task.target, count: count)
         
         // 等待 ping 完成
-        while pingManager.isPinging {
+        while pingManager.isPinging && !isCancelled {
             try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        
+        // 检查是否已取消
+        if isCancelled {
+            throw DiagnosisError.cancelled
         }
         
         // 从 PingManager 获取结果
@@ -469,6 +664,9 @@ class QuickDiagnosisManager: ObservableObject {
         
         // 执行多次 TCP 连接测试
         for _ in 0..<count {
+            // 检查是否已取消
+            if isCancelled { throw DiagnosisError.cancelled }
+            
             // 清空之前的结果
             tcpManager.results.removeAll()
             
@@ -480,10 +678,13 @@ class QuickDiagnosisManager: ObservableObject {
             
             // 等待测试完成（最多等待 10 秒）
             var waitCount = 0
-            while tcpManager.isScanning && waitCount < 100 {
+            while tcpManager.isScanning && waitCount < 100 && !isCancelled {
                 try? await Task.sleep(nanoseconds: 100_000_000)
                 waitCount += 1
             }
+            
+            // 检查是否已取消
+            if isCancelled { throw DiagnosisError.cancelled }
             
             // 额外等待确保结果写入
             try? await Task.sleep(nanoseconds: 100_000_000)
@@ -550,6 +751,9 @@ class QuickDiagnosisManager: ObservableObject {
         
         // 执行多次 UDP 测试
         for _ in 0..<count {
+            // 检查是否已取消
+            if isCancelled { throw DiagnosisError.cancelled }
+            
             // 清空之前的结果
             udpManager.results.removeAll()
             
@@ -561,10 +765,13 @@ class QuickDiagnosisManager: ObservableObject {
             
             // 等待测试完成（最多等待 5 秒）
             var waitCount = 0
-            while udpManager.isTesting && waitCount < 50 {
+            while udpManager.isTesting && waitCount < 50 && !isCancelled {
                 try? await Task.sleep(nanoseconds: 100_000_000)
                 waitCount += 1
             }
+            
+            // 检查是否已取消
+            if isCancelled { throw DiagnosisError.cancelled }
             
             // 额外等待确保结果写入
             try? await Task.sleep(nanoseconds: 100_000_000)
@@ -643,10 +850,13 @@ class QuickDiagnosisManager: ObservableObject {
         
         // 等待查询完成
         var waitCount = 0
-        while dnsManager.isQuerying && waitCount < 20 {
+        while dnsManager.isQuerying && waitCount < 20 && !isCancelled {
             try? await Task.sleep(nanoseconds: 500_000_000)
             waitCount += 1
         }
+        
+        // 检查是否已取消
+        if isCancelled { throw DiagnosisError.cancelled }
         
         let latency = Date().timeIntervalSince(startTime)
         
@@ -690,10 +900,13 @@ class QuickDiagnosisManager: ObservableObject {
         
         // 等待追踪完成（最多 60 秒）
         var waitTime = 0
-        while traceManager.isTracing && waitTime < 60 {
+        while traceManager.isTracing && waitTime < 60 && !isCancelled {
             try? await Task.sleep(nanoseconds: 1_000_000_000)
             waitTime += 1
         }
+        
+        // 检查是否已取消
+        if isCancelled { throw DiagnosisError.cancelled }
         
         // 检查是否有错误（如无 IPv6）
         if let errorMessage = traceManager.errorMessage {
@@ -707,7 +920,7 @@ class QuickDiagnosisManager: ObservableObject {
         
         // 等待归属地信息获取完成（最多 10 秒）
         var locationWaitTime = 0
-        while traceManager.isFetchingLocation && locationWaitTime < 10 {
+        while traceManager.isFetchingLocation && locationWaitTime < 10 && !isCancelled {
             try? await Task.sleep(nanoseconds: 500_000_000)
             locationWaitTime += 1
         }
@@ -737,6 +950,7 @@ enum DiagnosisError: Error, LocalizedError {
     case unsupportedTaskType(String)
     case networkError(String)
     case timeout
+    case cancelled
     
     var errorDescription: String? {
         switch self {
@@ -746,6 +960,8 @@ enum DiagnosisError: Error, LocalizedError {
             return "网络错误: \(msg)"
         case .timeout:
             return "操作超时"
+        case .cancelled:
+            return "诊断已取消"
         }
     }
 }

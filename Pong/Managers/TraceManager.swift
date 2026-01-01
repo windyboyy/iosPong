@@ -7,6 +7,7 @@
 
 import Foundation
 import Darwin
+import UIKit
 internal import Combine
 
 // MARK: - ICMP 结构定义
@@ -59,6 +60,9 @@ class TraceManager: ObservableObject {
     private let maxHops = 30
     private var startTime: Date?  // 记录开始时间
     
+    // 后台任务标识符
+    private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+    
     private init() {}
     
     // MARK: - 网络状态检查
@@ -84,6 +88,9 @@ class TraceManager: ObservableObject {
             return
         }
         
+        // 申请后台执行时间
+        beginBackgroundTask()
+        
         hops.removeAll()
         currentHost = host
         targetIP = ""
@@ -102,6 +109,8 @@ class TraceManager: ObservableObject {
                 await MainActor.run {
                     // 保存失败的历史记录
                     self.saveToHistory()
+                    // 结束后台任务
+                    self.endBackgroundTask()
                 }
                 return
             }
@@ -117,6 +126,8 @@ class TraceManager: ObservableObject {
             await MainActor.run {
                 // 保存历史记录
                 self.saveToHistory()
+                // 结束后台任务
+                self.endBackgroundTask()
             }
         }
     }
@@ -178,6 +189,46 @@ class TraceManager: ObservableObject {
         traceTask?.cancel()
         traceTask = nil
         isTracing = false
+        endBackgroundTask()
+    }
+    
+    // MARK: - 后台任务管理
+    private func beginBackgroundTask() {
+        // 先结束之前的后台任务（如果有）
+        endBackgroundTask()
+        
+        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "Traceroute") { [weak self] in
+            // 后台时间即将用尽
+            Task { @MainActor in
+                self?.handleBackgroundTaskExpiration()
+            }
+        }
+        
+        print("Traceroute 开始后台任务，ID: \(backgroundTaskID.rawValue)")
+    }
+    
+    private func endBackgroundTask() {
+        guard backgroundTaskID != .invalid else { return }
+        
+        print("Traceroute 结束后台任务，ID: \(backgroundTaskID.rawValue)")
+        UIApplication.shared.endBackgroundTask(backgroundTaskID)
+        backgroundTaskID = .invalid
+    }
+    
+    private func handleBackgroundTaskExpiration() {
+        print("Traceroute 后台任务时间即将用尽")
+        
+        // 停止追踪但保留已有结果
+        traceTask?.cancel()
+        traceTask = nil
+        
+        if isTracing {
+            isTracing = false
+            // 保存当前进度到历史记录
+            saveToHistory()
+        }
+        
+        endBackgroundTask()
     }
     
     // MARK: - 执行 Traceroute
@@ -849,37 +900,26 @@ class TraceManager: ObservableObject {
             self.isFetchingLocation = true
         }
         
-        do {
-            let ipInfoMap = try await IPInfoManager.shared.fetchBatchIPInfo(ipList: validIPs)
-            
-            // 再次检查是否被取消
-            guard !Task.isCancelled else {
-                await MainActor.run {
-                    self.isFetchingLocation = false
-                }
-                return
-            }
-            
-            await MainActor.run {
-                // 更新每个 hop 的归属地信息
-                for i in 0..<self.hops.count {
-                    let ip = self.hops[i].ip
-                    if ip != "*", let info = ipInfoMap[ip] {
-                        self.hops[i].location = info.shortLocation
-                    }
-                }
-                self.isFetchingLocation = false
-            }
-        } catch {
-            // 如果是取消错误，静默处理
-            if (error as NSError).code == NSURLErrorCancelled {
-                print("IP 归属地请求已取消")
-            } else {
-                print("获取 IP 归属地失败: \(error)")
-            }
+        // 使用 IPLocationService 来获取归属地（会自动处理私有 IP）
+        let locationMap = await IPLocationService.shared.fetchLocations(for: validIPs)
+        
+        // 再次检查是否被取消
+        guard !Task.isCancelled else {
             await MainActor.run {
                 self.isFetchingLocation = false
             }
+            return
+        }
+        
+        await MainActor.run {
+            // 更新每个 hop 的归属地信息
+            for i in 0..<self.hops.count {
+                let ip = self.hops[i].ip
+                if ip != "*", let location = locationMap[ip] {
+                    self.hops[i].location = location
+                }
+            }
+            self.isFetchingLocation = false
         }
     }
 }

@@ -248,6 +248,7 @@ struct HelpDetailView: View {
 struct FeedbackView: View {
     @EnvironmentObject var languageManager: LanguageManager
     @State private var showMailError = false
+    @State private var showCopySuccess = false
     @Environment(\.dismiss) private var dismiss
     
     private var l10n: L10n { L10n.shared }
@@ -287,9 +288,19 @@ struct FeedbackView: View {
                         Spacer()
                     }
                 }
+                .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
                 
                 Button {
                     UIPasteboard.general.string = feedbackEmail
+                    withAnimation {
+                        showCopySuccess = true
+                    }
+                    // 1.5秒后自动隐藏提示
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        withAnimation {
+                            showCopySuccess = false
+                        }
+                    }
                 } label: {
                     HStack {
                         Spacer()
@@ -299,12 +310,20 @@ struct FeedbackView: View {
                 }
             }
         }
+        .listStyle(.insetGrouped)
         .navigationTitle(l10n.feedback)
         .navigationBarTitleDisplayMode(.inline)
         .alert(l10n.mailNotAvailable, isPresented: $showMailError) {
             Button(l10n.ok) { }
         } message: {
             Text(l10n.mailNotAvailableDesc)
+        }
+        .overlay(alignment: .top) {
+            if showCopySuccess {
+                CopySuccessToastView(message: l10n.copySuccess)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .padding(.top, 60)
+            }
         }
     }
     

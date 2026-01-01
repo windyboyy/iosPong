@@ -7,6 +7,7 @@
 
 import Foundation
 import Darwin
+import UIKit
 internal import Combine
 
 @MainActor
@@ -27,6 +28,9 @@ class PingManager: ObservableObject {
     private var sequence: UInt16 = 0
     private var startTime: Date?  // 记录开始时间
     private let timeout: TimeInterval = 2.0  // 超时时间（秒）
+    
+    // 后台任务标识符
+    private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
     
     private init() {}
     
@@ -59,6 +63,9 @@ class PingManager: ObservableObject {
             return
         }
         
+        // 申请后台执行时间
+        beginBackgroundTask()
+        
         results.removeAll()
         statistics = PingStatistics()
         sequence = 0
@@ -82,6 +89,7 @@ class PingManager: ObservableObject {
                     )
                     self.results.append(errorResult)
                     self.isPinging = false
+                    self.endBackgroundTask()
                 }
                 return
             }
@@ -110,6 +118,7 @@ class PingManager: ObservableObject {
                         self.isPinging = false
                         // 保存错误到历史记录
                         self.saveIPv6ErrorToHistory(host: host, errorMessage: L10n.shared.noLocalIPv6ForPing)
+                        self.endBackgroundTask()
                     }
                     return
                 }
@@ -131,6 +140,8 @@ class PingManager: ObservableObject {
                 self.isPinging = false
                 // 保存历史记录
                 self.saveToHistory()
+                // 结束后台任务
+                self.endBackgroundTask()
             }
         }
     }
@@ -205,6 +216,37 @@ class PingManager: ObservableObject {
         pingTask?.cancel()
         pingTask = nil
         isPinging = false
+        endBackgroundTask()
+    }
+    
+    // MARK: - 后台任务管理
+    private func beginBackgroundTask() {
+        endBackgroundTask()
+        
+        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "Ping") { [weak self] in
+            Task { @MainActor in
+                self?.handleBackgroundTaskExpiration()
+            }
+        }
+    }
+    
+    private func endBackgroundTask() {
+        guard backgroundTaskID != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(backgroundTaskID)
+        backgroundTaskID = .invalid
+    }
+    
+    private func handleBackgroundTaskExpiration() {
+        // 后台时间即将用尽，停止 ping 但保留已有结果
+        pingTask?.cancel()
+        pingTask = nil
+        
+        if isPinging {
+            isPinging = false
+            saveToHistory()
+        }
+        
+        endBackgroundTask()
     }
     
     // MARK: - ICMP Ping 实现
