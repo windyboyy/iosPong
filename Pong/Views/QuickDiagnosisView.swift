@@ -17,282 +17,452 @@ extension Color {
 struct QuickDiagnosisView: View {
     @EnvironmentObject var languageManager: LanguageManager
     @ObservedObject private var manager = QuickDiagnosisManager.shared
+    @ObservedObject private var hostHistoryManager = HostHistoryManager.shared
     @State private var targetAddress: String = ""
     @FocusState private var isInputFocused: Bool
+    @State private var showReportView = false
     
     private var l10n: L10n { L10n.shared }
     
     var body: some View {
-        Group {
-            switch manager.state {
-            case .idle:
-                inputView
-            case .running:
-                executionView
-            case .completed:
-                resultView
-            case .error(let message):
-                errorView(message: message)
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 24) {
+                    // 顶部输入区域（idle 状态）或诊断进度卡片（运行/完成状态）
+                    if manager.state == .idle {
+                        inputSection
+                            .id("top")
+                    } else {
+                        diagnosisProgressCard
+                            .id("top")
+                            .transition(.opacity)
+                    }
+                    
+                    // 诊断任务列表（运行中或完成时显示）
+                    if case .running = manager.state {
+                        taskListSection
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    } else if case .completed = manager.state {
+                        taskListSection
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                    
+                    // 功能说明（仅在 idle 状态显示）
+                    if manager.state == .idle {
+                        featureDescriptionSection
+                            .transition(.opacity)
+                    }
+                    
+                    // 底部操作按钮（完成时显示）
+                    if case .completed = manager.state {
+                        bottomActionSection
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                    
+                    // 错误状态
+                    if case .error(let message) = manager.state {
+                        errorSection(message: message)
+                            .transition(.opacity)
+                    }
+                }
+                .padding()
+                .animation(.easeInOut(duration: 0.3), value: manager.state)
+            }
+            .onChange(of: manager.state) { newState in
+                if case .running = newState {
+                    withAnimation {
+                        proxy.scrollTo("top", anchor: .top)
+                    }
+                }
             }
         }
         .navigationTitle(l10n.quickDiagnosis)
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            // 每次页面出现时重置状态
-            resetState()
+        .navigationDestination(isPresented: $showReportView) {
+            DiagnosisReportView(
+                targetAddress: manager.targetAddress,
+                taskResults: manager.taskResults
+            )
+            .environmentObject(languageManager)
         }
-        .onDisappear {
-            // 页面消失时也重置，确保下次进入是干净状态
-            manager.reset()
+        .onAppear {
+            // 只有在 idle 状态时才重置，避免从报告页面返回时重置数据
+            if manager.state == .idle {
+                resetState()
+            } else {
+                // 如果是从报告页面返回，同步 manager 的地址到本地变量
+                targetAddress = manager.targetAddress
+            }
         }
     }
     
-    // MARK: - 输入地址视图
-    private var inputView: some View {
-        VStack(spacing: 32) {
-            // 顶部说明
-            VStack(spacing: 16) {
+    // MARK: - 诊断进度卡片（运行/完成状态显示）
+    private var diagnosisProgressCard: some View {
+        VStack(spacing: 16) {
+            // 目标地址显示
+            HStack(spacing: 12) {
                 ZStack {
                     Circle()
                         .fill(
+                            LinearGradient(
+                                colors: [.gradientBlue.opacity(0.15), .gradientPurple.opacity(0.15)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 40, height: 40)
+                    
+                    Image(systemName: "globe")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(
                             LinearGradient(
                                 colors: [.gradientBlue, .gradientPurple],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: 80, height: 80)
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(l10n.targetAddress)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(manager.targetAddress)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                }
+                
+                Spacer()
+                
+                // 状态标签
+                statusLabel
+            }
+            
+            // 分隔线
+            Rectangle()
+                .fill(Color(.separator).opacity(0.2))
+                .frame(height: 1)
+            
+            // 进度信息
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(manager.state == .running ? l10n.executingDiagnosis : l10n.diagnosisComplete)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
                     
-                    Image(systemName: "wand.and.stars")
-                        .font(.system(size: 36))
-                        .foregroundColor(.white)
+                    Text("\(l10n.task) \(manager.currentTaskIndex + 1) / \(manager.totalTasks)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
                 
-                Text(l10n.quickDiagnosis)
-                    .font(.title)
-                    .fontWeight(.bold)
+                Spacer()
                 
-                Text(l10n.enterTargetAddress)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            .padding(.top, 40)
-            
-            // 地址输入框
-            VStack(spacing: 16) {
-                TextField(l10n.targetAddressPlaceholder, text: $targetAddress)
-                    .textFieldStyle(.plain)
-                    .font(.body)
-                    .padding()
-                    .background(Color(.systemBackground))
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(isInputFocused ? Color.gradientBlue : Color(.systemGray4), lineWidth: isInputFocused ? 2 : 1)
-                    )
-                    .focused($isInputFocused)
-                    .autocapitalization(.none)
-                    .disableAutocorrection(true)
-                    .keyboardType(.URL)
-                
-                // 开始诊断按钮
-                Button {
-                    Task {
-                        await manager.startDiagnosis(target: targetAddress.trimmingCharacters(in: .whitespacesAndNewlines))
-                    }
-                } label: {
-                    HStack {
-                        Image(systemName: "play.fill")
-                        Text(l10n.startDiagnosis)
-                    }
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(
-                        LinearGradient(
-                            colors: targetAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty 
-                                ? [Color.gray, Color.gray] 
-                                : [Color.gradientBlue, Color.gradientPurple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .cornerRadius(12)
-                }
-                .disabled(targetAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-            .padding(.horizontal)
-            
-            // 提示信息
-            VStack(spacing: 8) {
-                Text(l10n.diagnosisAddressHint)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.horizontal)
-            
-            Spacer()
-        }
-    }
-    
-    // MARK: - 执行中视图
-    private var executionView: some View {
-        VStack(spacing: 0) {
-            // 进度头部
-            VStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .stroke(Color(.systemGray4), lineWidth: 8)
-                        .frame(width: 80, height: 80)
-                    
-                    Circle()
-                        .trim(from: 0, to: manager.progress)
-                        .stroke(
-                            LinearGradient(
-                                colors: [.gradientBlue, .gradientPurple],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            style: StrokeStyle(lineWidth: 8, lineCap: .round)
-                        )
-                        .frame(width: 80, height: 80)
-                        .rotationEffect(.degrees(-90))
-                        .animation(.easeInOut, value: manager.progress)
-                    
-                    Text("\(Int(manager.progress * 100))%")
-                        .font(.headline)
-                        .fontWeight(.bold)
-                }
-                
-                Text(l10n.executingDiagnosis)
-                    .font(.headline)
-                
-                Text("\(l10n.task) \(manager.currentTaskIndex + 1) / \(manager.totalTasks)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                Text(manager.targetAddress)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding(.vertical, 32)
-            .frame(maxWidth: .infinity)
-            .background(Color(.systemBackground))
-            
-            // 任务状态列表
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    ForEach(Array(manager.taskResults.values).sorted(by: { $0.taskDetail.id < $1.taskDetail.id })) { result in
-                        TaskStatusCard(result: result)
-                    }
-                }
-                .padding()
-            }
-            .background(Color(.systemGroupedBackground))
-        }
-    }
-    
-    // MARK: - 结果视图
-    private var resultView: some View {
-        VStack(spacing: 0) {
-            // 完成头部
-            VStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(Color.green.opacity(0.15))
-                        .frame(width: 64, height: 64)
-                    
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 36))
-                        .foregroundColor(.green)
-                }
-                
-                Text(l10n.diagnosisComplete)
-                    .font(.title3)
-                    .fontWeight(.bold)
-                
-                let successCount = manager.taskResults.values.filter { $0.status == .success }.count
-                let totalCount = manager.taskResults.count
-                
-                Text("\(successCount) / \(totalCount) \(l10n.tasksSuccess)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                Text(manager.targetAddress)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding(.vertical, 20)
-            .frame(maxWidth: .infinity)
-            .background(Color(.systemBackground))
-            
-            // 结果列表
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    ForEach(Array(manager.taskResults.values).sorted(by: { $0.taskDetail.id < $1.taskDetail.id })) { result in
-                        TaskResultCard(result: result)
-                    }
-                }
-                .padding()
-            }
-            .background(Color(.systemGroupedBackground))
-            
-            // 底部操作
-            VStack(spacing: 12) {
-                Button {
-                    manager.reset()
-                    targetAddress = ""
-                    isInputFocused = true
-                } label: {
-                    HStack {
-                        Image(systemName: "arrow.counterclockwise")
-                        Text(l10n.reDiagnose)
-                    }
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(
+                // 百分比
+                Text("\(Int(manager.progress * 100))%")
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundStyle(
                         LinearGradient(
                             colors: [.gradientBlue, .gradientPurple],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
-                    .cornerRadius(12)
+            }
+            
+            // 进度条
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(Color(.systemGray5))
+                        .frame(height: 8)
+                    
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(
+                            LinearGradient(
+                                colors: [.gradientBlue, .gradientPurple],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: max(geometry.size.width * manager.progress, 8), height: 8)
+                        .shadow(color: .gradientBlue.opacity(0.3), radius: 3, x: 0, y: 1)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: manager.progress)
                 }
             }
-            .padding()
-            .background(Color(.systemBackground))
+            .frame(height: 8)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.secondarySystemBackground))
+        )
+    }
+    
+    // 状态标签
+    private var statusLabel: some View {
+        Group {
+            if manager.state == .running {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .frame(width: 14, height: 14)
+                        .tint(.white)
+                    Text(l10n.running)
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [.gradientBlue, .gradientPurple],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                )
+            } else {
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 12))
+                    Text(l10n.success)
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .foregroundColor(.green)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(Color.green.opacity(0.12))
+                )
+            }
         }
     }
     
-    // MARK: - 错误视图
-    private func errorView(message: String) -> some View {
-        VStack(spacing: 24) {
-            Spacer()
+    // MARK: - 输入区域
+    private var inputSection: some View {
+        VStack(spacing: 16) {
+            // 顶部图标和标题（仅在 idle 状态显示完整版）
+            if manager.state == .idle {
+                VStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [.gradientBlue, .gradientPurple],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 80, height: 80)
+                        
+                        Image(systemName: "wand.and.stars")
+                            .font(.system(size: 36))
+                            .foregroundColor(.white)
+                    }
+                    
+                    Text(l10n.quickDiagnosis)
+                        .font(.title)
+                        .fontWeight(.bold)
+                    
+                    Text(l10n.enterTargetAddress)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.top, 20)
+            }
             
+            // 地址输入框
+            VStack(spacing: 12) {
+                HStack {
+                    TextField(l10n.targetAddressPlaceholder, text: $targetAddress)
+                        .textFieldStyle(.plain)
+                        .font(.body)
+                        .focused($isInputFocused)
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
+                        .keyboardType(.URL)
+                        .disabled(manager.state == .running)
+                    
+                    if manager.state == .running {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    }
+                }
+                .padding()
+                .background(Color(.systemBackground))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(isInputFocused ? Color.gradientBlue : Color(.systemGray4), lineWidth: isInputFocused ? 2 : 1)
+                )
+                
+                // 开始诊断按钮（仅在 idle 状态显示）
+                if manager.state == .idle {
+                    Button {
+                        let trimmedAddress = targetAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+                        hostHistoryManager.addQuickDiagnosisHistory(trimmedAddress)
+                        isInputFocused = false
+                        Task {
+                            await manager.startDiagnosis(target: trimmedAddress)
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: "play.fill")
+                            Text(l10n.startDiagnosis)
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(
+                            LinearGradient(
+                                colors: targetAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty 
+                                    ? [Color.gray, Color.gray] 
+                                    : [Color.gradientBlue, Color.gradientPurple],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(12)
+                    }
+                    .disabled(targetAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            
+            // 快捷诊断选择（仅在 idle 状态显示）
+            if manager.state == .idle && !hostHistoryManager.quickDiagnosisHistory.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(hostHistoryManager.quickDiagnosisHistory, id: \.self) { host in
+                            Button {
+                                targetAddress = host
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "clock")
+                                        .font(.system(size: 10))
+                                    Text(host)
+                                        .font(.caption)
+                                        .lineLimit(1)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(targetAddress == host ? Color.gradientBlue : Color(.systemGray5))
+                                .foregroundColor(targetAddress == host ? .white : .primary)
+                                .cornerRadius(16)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - 任务列表区域
+    private var taskListSection: some View {
+        VStack(spacing: 10) {
+            ForEach(Array(manager.taskResults.values).sorted(by: { $0.taskDetail.id < $1.taskDetail.id })) { result in
+                TaskStatusCard(result: result)
+            }
+        }
+    }
+    
+    // MARK: - 功能说明区域
+    private var featureDescriptionSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "info.circle.fill")
+                    .foregroundColor(.gradientBlue)
+                Text(l10n.quickDiagnosisFeatureTitle)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            }
+            
+            Text(l10n.quickDiagnosisFeatureDesc)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+    
+    // MARK: - 底部操作区域
+    private var bottomActionSection: some View {
+        VStack(spacing: 12) {
+            // 查看诊断报告按钮
+            Button {
+                showReportView = true
+            } label: {
+                HStack {
+                    Image(systemName: "doc.text.magnifyingglass")
+                    Text(l10n.viewDiagnosisReport)
+                }
+                .font(.headline)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(
+                    LinearGradient(
+                        colors: [.gradientBlue, .gradientPurple],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(12)
+            }
+            
+            // 重新诊断按钮
+            Button {
+                manager.reset()
+                targetAddress = ""
+                isInputFocused = true
+            } label: {
+                HStack {
+                    Image(systemName: "arrow.counterclockwise")
+                    Text(l10n.reDiagnose)
+                }
+                .font(.headline)
+                .foregroundColor(.gradientBlue)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color(.systemBackground))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.gradientBlue, lineWidth: 2)
+                )
+                .cornerRadius(12)
+            }
+        }
+    }
+    
+    // MARK: - 错误区域
+    private func errorSection(message: String) -> some View {
+        VStack(spacing: 16) {
             ZStack {
                 Circle()
                     .fill(Color.red.opacity(0.15))
-                    .frame(width: 80, height: 80)
+                    .frame(width: 64, height: 64)
                 
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 40))
+                    .font(.system(size: 32))
                     .foregroundColor(.red)
             }
             
             Text(l10n.diagnosisFailed)
-                .font(.title2)
+                .font(.headline)
                 .fontWeight(.bold)
             
             Text(message)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
             
             Button {
                 manager.reset()
@@ -316,14 +486,19 @@ struct QuickDiagnosisView: View {
                 )
                 .cornerRadius(10)
             }
-            
-            Spacer()
         }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(16)
     }
     
     // MARK: - 辅助方法
     private func resetState() {
-        manager.reset()
+        // 如果当前状态不是 idle，才执行重置，避免重复重置
+        if manager.state != .idle {
+            manager.reset()
+        }
         targetAddress = ""
         isInputFocused = true
     }
@@ -385,83 +560,158 @@ struct TaskStatusCard: View {
     private var l10n: L10n { L10n.shared }
     
     var body: some View {
-        HStack(spacing: 16) {
-            // 状态图标
+        HStack(spacing: 14) {
+            // 左侧状态指示条
+            RoundedRectangle(cornerRadius: 2)
+                .fill(statusGradient)
+                .frame(width: 4, height: 40)
+            
+            // 任务类型图标
             ZStack {
-                Circle()
-                    .fill(statusColor.opacity(0.15))
-                    .frame(width: 44, height: 44)
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(taskTypeColor.opacity(0.12))
+                    .frame(width: 40, height: 40)
                 
-                statusIcon
+                Image(systemName: result.taskDetail.taskType?.icon ?? "questionmark")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(taskTypeColor)
             }
             
             // 任务信息
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(result.taskDetail.taskType?.displayName ?? result.taskDetail.msmType)
-                    .font(.headline)
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(.primary)
                 
                 Text(result.taskDetail.target)
-                    .font(.caption)
+                    .font(.system(size: 12))
                     .foregroundColor(.secondary)
+                    .lineLimit(1)
             }
             
             Spacer()
             
-            // 状态文字
-            statusText
+            // 右侧状态
+            HStack(spacing: 8) {
+                statusBadge
+            }
         }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.primary.opacity(0.06), radius: 2, x: 0, y: 1)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(statusBorderColor, lineWidth: result.status == .running ? 1.5 : 1)
+        )
     }
     
-    private var statusColor: Color {
+    private var taskTypeColor: Color {
+        switch result.taskDetail.taskType {
+        case .ping: return .blue
+        case .tcp: return .orange
+        case .udp: return .green
+        case .dns: return .cyan
+        case .trace: return .purple
+        case .none: return .gray
+        }
+    }
+    
+    private var statusGradient: LinearGradient {
         switch result.status {
-        case .pending: return .gray
-        case .running: return .blue
-        case .success: return .green
-        case .failed: return .red
+        case .pending:
+            return LinearGradient(colors: [.gray.opacity(0.4), .gray.opacity(0.2)], startPoint: .top, endPoint: .bottom)
+        case .running:
+            return LinearGradient(colors: [.gradientBlue, .gradientPurple], startPoint: .top, endPoint: .bottom)
+        case .success:
+            return LinearGradient(colors: [.green, .green.opacity(0.7)], startPoint: .top, endPoint: .bottom)
+        case .failed:
+            return LinearGradient(colors: [.red, .red.opacity(0.7)], startPoint: .top, endPoint: .bottom)
+        }
+    }
+    
+    private var statusBorderColor: Color {
+        switch result.status {
+        case .pending: return Color(.systemGray3)
+        case .running: return .gradientBlue.opacity(0.7)
+        case .success: return .green.opacity(0.4)
+        case .failed: return .red.opacity(0.4)
         }
     }
     
     @ViewBuilder
-    private var statusIcon: some View {
+    private var statusBadge: some View {
         switch result.status {
         case .pending:
-            Image(systemName: "clock")
-                .foregroundColor(.gray)
+            HStack(spacing: 4) {
+                Image(systemName: "clock")
+                    .font(.system(size: 10))
+                Text(l10n.pending)
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .foregroundColor(.secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                Capsule()
+                    .fill(Color(.tertiarySystemFill))
+            )
+            
         case .running:
-            ProgressView()
-                .scaleEffect(0.8)
+            HStack(spacing: 6) {
+                ProgressView()
+                    .scaleEffect(0.6)
+                    .frame(width: 12, height: 12)
+                    .tint(.white)
+                Text(l10n.running)
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [.gradientBlue, .gradientPurple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+            )
+            
         case .success:
-            Image(systemName: "checkmark")
-                .foregroundColor(.green)
+            HStack(spacing: 4) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 11))
+                Text(l10n.success)
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundColor(.green)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                Capsule()
+                    .fill(Color.green.opacity(0.15))
+            )
+            
         case .failed:
-            Image(systemName: "xmark")
-                .foregroundColor(.red)
-        }
-    }
-    
-    @ViewBuilder
-    private var statusText: some View {
-        switch result.status {
-        case .pending:
-            Text(l10n.pending)
-                .font(.caption)
-                .foregroundColor(.secondary)
-        case .running:
-            Text(l10n.running)
-                .font(.caption)
-                .foregroundColor(.blue)
-        case .success:
-            Text(l10n.success)
-                .font(.caption)
-                .foregroundColor(.green)
-        case .failed:
-            Text(l10n.failure)
-                .font(.caption)
-                .foregroundColor(.red)
+            HStack(spacing: 4) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 11))
+                Text(l10n.failure)
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundColor(.red)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                Capsule()
+                    .fill(Color.red.opacity(0.15))
+            )
         }
     }
 }

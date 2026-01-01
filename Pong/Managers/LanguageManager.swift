@@ -281,6 +281,7 @@ struct L10n {
     var engineerZone: String { lang == .chinese ? "工程师专区" : "Engineer Zone" }
     
     // MARK: - 一键诊断
+    var targetAddress: String { lang == .chinese ? "目标地址" : "Target" }
     var enterTargetAddress: String { lang == .chinese ? "请输入目标地址" : "Enter target address" }
     var targetAddressPlaceholder: String { lang == .chinese ? "输入域名或 IP 地址" : "Enter domain or IP address" }
     var diagnosisAddressHint: String { lang == .chinese ? "支持域名或 IP 地址，如 baidu.com 或 8.8.8.8" : "Supports domain or IP address, e.g. baidu.com or 8.8.8.8" }
@@ -290,9 +291,18 @@ struct L10n {
     var diagnosisComplete: String { lang == .chinese ? "诊断完成" : "Diagnosis Complete" }
     var tasksSuccess: String { lang == .chinese ? "个任务成功" : "tasks succeeded" }
     var reDiagnose: String { lang == .chinese ? "重新诊断" : "Re-diagnose" }
+    var viewDiagnosisReport: String { lang == .chinese ? "查看诊断报告" : "View Report" }
     var diagnosisFailed: String { lang == .chinese ? "诊断失败" : "Diagnosis Failed" }
     var pending: String { lang == .chinese ? "等待中" : "Pending" }
     var running: String { lang == .chinese ? "执行中" : "Running" }
+    var historyRecords: String { lang == .chinese ? "快捷诊断" : "Quick Diagnosis" }
+    var quickDiagnosisFeatureTitle: String { lang == .chinese ? "功能说明" : "Feature Description" }
+    var quickDiagnosisFeatureDesc: String { lang == .chinese ? "一键诊断会自动执行 DNS 查询、Ping 测试、TCP 端口检测（80/443）和路由追踪，帮助您快速定位网络问题。" : "Quick Diagnosis automatically performs DNS query, Ping test, TCP port detection (80/443), and traceroute to help you quickly identify network issues." }
+    var diagnosisReport: String { lang == .chinese ? "诊断报告" : "Diagnosis Report" }
+    var noDiagnosisData: String { lang == .chinese ? "暂无诊断数据" : "No diagnosis data" }
+    var diagnosisSummaryAllSuccess: String { lang == .chinese ? "所有诊断项目均正常，网络连接良好" : "All diagnosis items are normal, network connection is good" }
+    var diagnosisSummaryAllFailed: String { lang == .chinese ? "所有诊断项目均失败，请检查网络连接" : "All diagnosis items failed, please check network connection" }
+    var diagnosisSummaryPartial: String { lang == .chinese ? "有 %d 项诊断异常，请查看详情" : "%d diagnosis items are abnormal, please check details" }
     
     // 诊断任务类型
     var diagnosisPingTest: String { lang == .chinese ? "Ping 测试" : "Ping Test" }
@@ -369,13 +379,13 @@ struct L10n {
     var techSupport: String { lang == .chinese ? "技术支持" : "Tech Support" }
     
     // MARK: - 意见反馈
-    var feedbackContent: String { lang == .chinese ? "反馈内容" : "Feedback Content" }
-    var contactInfo: String { lang == .chinese ? "联系方式（选填）" : "Contact (Optional)" }
-    var emailOrPhone: String { lang == .chinese ? "邮箱或手机号" : "Email or Phone" }
-    var submitFeedback: String { lang == .chinese ? "提交反馈" : "Submit Feedback" }
-    var submitSuccess: String { lang == .chinese ? "提交成功" : "Submitted Successfully" }
-    var submitFailed: String { lang == .chinese ? "提交失败，请稍后重试" : "Submit failed, please try again" }
-    var thanksFeedback: String { lang == .chinese ? "感谢您的反馈，我们会认真处理！" : "Thanks for your feedback!" }
+    var feedbackEmailTitle: String { lang == .chinese ? "通过邮件联系我们" : "Contact Us via Email" }
+    var feedbackEmailDesc: String { lang == .chinese ? "如有问题或建议，请发送邮件给我们" : "For questions or suggestions, please send us an email" }
+    var feedbackEmailSubject: String { lang == .chinese ? "iTango 意见反馈" : "iTango Feedback" }
+    var sendEmail: String { lang == .chinese ? "发送邮件" : "Send Email" }
+    var copyEmail: String { lang == .chinese ? "复制邮箱地址" : "Copy Email Address" }
+    var mailNotAvailable: String { lang == .chinese ? "无法发送邮件" : "Cannot Send Email" }
+    var mailNotAvailableDesc: String { lang == .chinese ? "请检查是否已配置邮件账户，或手动复制邮箱地址" : "Please check if mail account is configured, or copy the email address manually" }
     
     // MARK: - 通用
     
@@ -524,21 +534,11 @@ struct L10n {
     var versionInfo: String { lang == .chinese ? "版本信息" : "Version Info" }
     var currentVersion: String { lang == .chinese ? "当前版本" : "Current Version" }
     var buildNumber: String { lang == .chinese ? "构建号" : "Build Number" }
-    var checkUpdate: String { lang == .chinese ? "检查更新" : "Check for Updates" }
     var developerInfo: String { lang == .chinese ? "开发信息" : "Developer Info" }
     var developer: String { lang == .chinese ? "开发者" : "Developer" }
     var copyright: String { lang == .chinese ? "版权" : "Copyright" }
     var relatedLinks: String { lang == .chinese ? "相关链接" : "Related Links" }
     var officialWebsite: String { lang == .chinese ? "官方网站" : "Official Website" }
-    
-    // MARK: - 更新检查
-    var newVersionAvailable: String { lang == .chinese ? "发现新版本" : "New Version Available" }
-    var latestVersion: String { lang == .chinese ? "最新版本" : "Latest Version" }
-    var updateNow: String { lang == .chinese ? "立即更新" : "Update Now" }
-    var updateLater: String { lang == .chinese ? "稍后提醒" : "Later" }
-    var ignoreThisVersion: String { lang == .chinese ? "忽略此版本" : "Ignore This Version" }
-    var alreadyLatestVersion: String { lang == .chinese ? "当前已是最新版本" : "You're on the latest version" }
-    var checkUpdateFailed: String { lang == .chinese ? "检查更新失败" : "Failed to check for updates" }
     
     // MARK: - TCP 页面
     var tcpTitle: String { lang == .chinese ? "TCP 连接测试" : "TCP Connection Test" }

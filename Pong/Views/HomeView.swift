@@ -213,10 +213,6 @@ struct HomeView: View {
             }
             .navigationDestination(isPresented: $showQuickDiagnosis) {
                 QuickDiagnosisView()
-                    .onAppear {
-                        // 确保每次进入时重置状态
-                        QuickDiagnosisManager.shared.reset()
-                    }
             }
             .sheet(item: $safariURL) { url in
                 SafariView(url: url)

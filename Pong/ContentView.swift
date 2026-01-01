@@ -62,7 +62,6 @@ enum AppTab: String, CaseIterable {
 
 struct ContentView: View {
     @EnvironmentObject var languageManager: LanguageManager
-    @StateObject private var updateManager = AppUpdateManager.shared
     @State private var selectedTab: AppTab = .localProbe
     
     private var l10n: L10n { L10n.shared }
@@ -90,31 +89,6 @@ struct ContentView: View {
         }
         .tint(.blue)
         .id(tabViewId) // 只在语言变化时重建 TabView
-        .task {
-            // 启动时检查更新
-            await updateManager.checkUpdateOnLaunch()
-        }
-        .alert(l10n.newVersionAvailable, isPresented: $updateManager.showUpdateAlert) {
-            if updateManager.isForceUpdate {
-                Button(l10n.updateNow) {
-                    updateManager.openAppStore()
-                }
-            } else {
-                Button(l10n.updateLater, role: .cancel) {
-                    updateManager.dismissUpdate()
-                }
-                Button(l10n.ignoreThisVersion) {
-                    updateManager.ignoreCurrentUpdate()
-                }
-                Button(l10n.updateNow) {
-                    updateManager.openAppStore()
-                }
-            }
-        } message: {
-            if let data = updateManager.updateData {
-                Text("\(l10n.currentVersion): \(updateManager.currentVersion) → \(l10n.latestVersion): \(data.latestVersion)\n\n\(data.updateContent)")
-            }
-        }
     }
 }
 

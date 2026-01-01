@@ -134,7 +134,7 @@ struct DiagnosisTaskResult: Identifiable {
 }
 
 // MARK: - 诊断状态
-enum DiagnosisState {
+enum DiagnosisState: Equatable {
     case idle
     case running           // 正在执行探测
     case completed         // 所有探测完成
@@ -171,6 +171,28 @@ class QuickDiagnosisManager: ObservableObject {
         currentTaskIndex = 0
         progress = 0
         totalTasks = 0
+    }
+    
+    // MARK: - 检查网络可达性
+    private func checkNetworkReachability() async -> Bool {
+        // 尝试连接一个可靠的服务器来验证网络
+        guard let url = URL(string: "https://www.qq.com") else {
+            return false
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "HEAD"
+        request.timeoutInterval = 3
+        
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse {
+                return httpResponse.statusCode >= 200 && httpResponse.statusCode < 400
+            }
+            return false
+        } catch {
+            return false
+        }
     }
     
     // MARK: - 生成诊断任务列表
@@ -261,11 +283,27 @@ class QuickDiagnosisManager: ObservableObject {
             return
         }
         
-        // 检查网络连接
-        let networkStatus = DeviceInfoManager.shared.networkStatus
-        guard networkStatus != .disconnected && networkStatus != .unknown else {
-            state = .error("无网络连接，请检查网络设置后重试")
-            return
+        // 检查网络连接，如果状态为 unknown，等待一小段时间让网络监控器初始化
+        var networkStatus = DeviceInfoManager.shared.networkStatus
+        if networkStatus == .unknown {
+            // 等待最多 1 秒让网络状态更新
+            for _ in 0..<10 {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                networkStatus = DeviceInfoManager.shared.networkStatus
+                if networkStatus != .unknown {
+                    break
+                }
+            }
+        }
+        
+        // 如果等待后仍然是 unknown，尝试直接进行网络请求来验证
+        if networkStatus == .unknown || networkStatus == .disconnected {
+            // 尝试一个简单的网络请求来验证网络是否可用
+            let isReachable = await checkNetworkReachability()
+            if !isReachable {
+                state = .error("无网络连接，请检查网络设置后重试")
+                return
+            }
         }
         
         // 保存目标地址

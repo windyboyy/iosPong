@@ -22,12 +22,18 @@ extension Bundle {
 
 struct AboutView: View {
     @EnvironmentObject var languageManager: LanguageManager
-    @StateObject private var updateManager = AppUpdateManager.shared
-    @State private var showUpdateResult = false
-    @State private var updateResultMessage = ""
-    @State private var isLatestVersion = false
     
     private var l10n: L10n { L10n.shared }
+    
+    /// 获取当前版本号
+    private var currentVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+    }
+    
+    /// 获取 Build 号
+    private var buildNumber: String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+    }
     
     var body: some View {
         List {
@@ -56,7 +62,7 @@ struct AboutView: View {
                         .fontWeight(.bold)
                     
                     // 版本信息
-                    Text("\(l10n.version) \(updateManager.currentVersion) (\(updateManager.buildNumber))")
+                    Text("\(l10n.version) \(currentVersion) (\(buildNumber))")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -72,34 +78,16 @@ struct AboutView: View {
                 HStack {
                     Text(l10n.currentVersion)
                     Spacer()
-                    Text(updateManager.currentVersion)
+                    Text(currentVersion)
                         .foregroundColor(.secondary)
                 }
                 
                 HStack {
                     Text(l10n.buildNumber)
                     Spacer()
-                    Text(updateManager.buildNumber)
+                    Text(buildNumber)
                         .foregroundColor(.secondary)
                 }
-                
-                // 检查更新按钮
-                Button {
-                    checkForUpdate()
-                } label: {
-                    HStack {
-                        Text(l10n.checkUpdate)
-                        Spacer()
-                        if updateManager.isChecking {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                .disabled(updateManager.isChecking)
             }
             
             // 开发信息
@@ -134,29 +122,6 @@ struct AboutView: View {
         }
         .navigationTitle(l10n.about)
         .navigationBarTitleDisplayMode(.inline)
-        .alert(l10n.checkUpdate, isPresented: $showUpdateResult) {
-            Button(l10n.confirm) { }
-        } message: {
-            Text(updateResultMessage)
-        }
-    }
-    
-    private func checkForUpdate() {
-        Task {
-            let result = await updateManager.checkUpdate(showAlertIfNoUpdate: true)
-            
-            switch result {
-            case .noUpdate:
-                updateResultMessage = l10n.alreadyLatestVersion
-                showUpdateResult = true
-            case .error(let message):
-                updateResultMessage = "\(l10n.checkUpdateFailed): \(message)"
-                showUpdateResult = true
-            case .optionalUpdate, .forceUpdate:
-                // 会自动显示更新弹窗
-                break
-            }
-        }
     }
 }
 

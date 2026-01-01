@@ -22,6 +22,7 @@ class HostHistoryManager: ObservableObject {
     private let traceHistoryKey = "TraceHostHistory"
     private let httpHistoryKey = "HTTPHostHistory"
     private let connectionTestHistoryKey = "ConnectionTestHostHistory"
+    private let quickDiagnosisHistoryKey = "QuickDiagnosisHostHistory"
     
     // 最大历史记录数
     private let maxHistoryCount = 10
@@ -34,6 +35,7 @@ class HostHistoryManager: ObservableObject {
     @Published var traceHistory: [String] = []
     @Published var httpHistory: [String] = []
     @Published var connectionTestHistory: [String] = []
+    @Published var quickDiagnosisHistory: [String] = []
     
     private init() {
         loadAllHistory()
@@ -48,6 +50,7 @@ class HostHistoryManager: ObservableObject {
         traceHistory = UserDefaults.standard.stringArray(forKey: traceHistoryKey) ?? []
         httpHistory = UserDefaults.standard.stringArray(forKey: httpHistoryKey) ?? []
         connectionTestHistory = UserDefaults.standard.stringArray(forKey: connectionTestHistoryKey) ?? []
+        quickDiagnosisHistory = UserDefaults.standard.stringArray(forKey: quickDiagnosisHistoryKey) ?? []
     }
     
     // MARK: - 添加历史记录
@@ -77,6 +80,10 @@ class HostHistoryManager: ObservableObject {
     
     func addConnectionTestHistory(_ host: String) {
         addHistory(host, to: &connectionTestHistory, key: connectionTestHistoryKey)
+    }
+    
+    func addQuickDiagnosisHistory(_ host: String) {
+        addHistory(host, to: &quickDiagnosisHistory, key: quickDiagnosisHistoryKey)
     }
     
     private func addHistory(_ host: String, to history: inout [String], key: String) {
@@ -124,6 +131,10 @@ class HostHistoryManager: ObservableObject {
         removeHistory(host, from: &connectionTestHistory, key: connectionTestHistoryKey)
     }
     
+    func removeQuickDiagnosisHistory(_ host: String) {
+        removeHistory(host, from: &quickDiagnosisHistory, key: quickDiagnosisHistoryKey)
+    }
+    
     private func removeHistory(_ host: String, from history: inout [String], key: String) {
         history.removeAll { $0 == host }
         UserDefaults.standard.set(history, forKey: key)
@@ -163,6 +174,11 @@ class HostHistoryManager: ObservableObject {
     func clearConnectionTestHistory() {
         connectionTestHistory.removeAll()
         UserDefaults.standard.removeObject(forKey: connectionTestHistoryKey)
+    }
+    
+    func clearQuickDiagnosisHistory() {
+        quickDiagnosisHistory.removeAll()
+        UserDefaults.standard.removeObject(forKey: quickDiagnosisHistoryKey)
     }
 }
 
