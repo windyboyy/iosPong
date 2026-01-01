@@ -14,9 +14,10 @@ struct HTTPGetView: View {
     @State private var urlInput = "https://www.qq.com"
     @State private var showHistory = false
     @State private var showCopyToast = false
-    @State private var showHeaders = false
-    @State private var showBody = true
-    @State private var timeoutSeconds: Double = 30
+    @State private var showTiming = true
+    @State private var showHeaders = true
+    @State private var showBody = false
+    @State private var timeoutSeconds: Double = 10
     @FocusState private var isInputFocused: Bool
     
     private var l10n: L10n { L10n.shared }
@@ -176,8 +177,13 @@ struct HTTPGetView: View {
                                 
                                 Spacer()
                                 
-                                Text(String(format: "%.0fms", resp.responseTime * 1000))
-                                    .foregroundColor(.yellow)
+                                HStack(spacing: 4) {
+                                    Text(String(format: "%.0fms", resp.responseTime * 1000))
+                                        .foregroundColor(.yellow)
+                                    Text(l10n.pureNetwork)
+                                        .foregroundColor(.gray)
+                                        .font(.system(size: 10, design: .monospaced))
+                                }
                             }
                             .font(.system(size: 14, design: .monospaced))
                             
@@ -186,6 +192,22 @@ struct HTTPGetView: View {
                                 Text("Error: \(error)")
                                     .foregroundColor(.red)
                                     .font(.system(size: 12, design: .monospaced))
+                            }
+                            
+                            // Timing 折叠区域
+                            if resp.timing.hasData {
+                                DisclosureGroup(isExpanded: $showTiming) {
+                                    HTTPTimingView(timing: resp.timing)
+                                        .padding(.top, 4)
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Text("Timing")
+                                        Image(systemName: showTiming ? "chevron.down" : "chevron.right")
+                                            .font(.system(size: 10))
+                                    }
+                                    .foregroundColor(.orange)
+                                    .font(.system(size: 12, design: .monospaced))
+                                }
                             }
                             
                             // Headers 折叠区域
@@ -198,15 +220,20 @@ struct HTTPGetView: View {
                                                     .foregroundColor(.cyan)
                                                 Text(resp.headers[key] ?? "")
                                                     .foregroundColor(.white)
+                                                Spacer()
                                             }
                                             .font(.system(size: 11, design: .monospaced))
                                         }
                                     }
                                     .padding(.top, 4)
                                 } label: {
-                                    Text("Headers (\(resp.headers.count))")
-                                        .foregroundColor(.orange)
-                                        .font(.system(size: 12, design: .monospaced))
+                                    HStack(spacing: 4) {
+                                        Text("Headers (\(resp.headers.count))")
+                                        Image(systemName: showHeaders ? "chevron.down" : "chevron.right")
+                                            .font(.system(size: 10))
+                                    }
+                                    .foregroundColor(.orange)
+                                    .font(.system(size: 12, design: .monospaced))
                                 }
                             }
                             
@@ -219,9 +246,13 @@ struct HTTPGetView: View {
                                         .textSelection(.enabled)
                                         .padding(.top, 4)
                                 } label: {
-                                    Text("Body (\(formatBytes(resp.body.utf8.count)))")
-                                        .foregroundColor(.orange)
-                                        .font(.system(size: 12, design: .monospaced))
+                                    HStack(spacing: 4) {
+                                        Text("Body (\(formatBytes(resp.body.utf8.count)))")
+                                        Image(systemName: showBody ? "chevron.down" : "chevron.right")
+                                            .font(.system(size: 10))
+                                    }
+                                    .foregroundColor(.orange)
+                                    .font(.system(size: 12, design: .monospaced))
                                 }
                             }
                         }
@@ -390,6 +421,92 @@ struct HTTPGetView: View {
             withAnimation(.easeInOut(duration: 0.3)) {
                 showCopyToast = false
             }
+        }
+    }
+}
+
+// MARK: - HTTP Timing 可视化视图
+struct HTTPTimingView: View {
+    let timing: HTTPTimingMetrics
+    
+    private var l10n: L10n { L10n.shared }
+    
+    // 各阶段数据
+    private var phases: [(String, TimeInterval, Color)] {
+        [
+            ("DNS", timing.dnsLookup, .cyan),
+            ("TCP", timing.tcpConnection, .green),
+            ("TLS", timing.tlsHandshake, .orange),
+            ("Request", timing.requestSent, .blue),
+            ("TTFB", timing.serverResponse, .purple),
+            ("Download", timing.contentDownload, .pink)
+        ].filter { $0.1 > 0 }
+    }
+    
+    private let tagColor = Color.gray
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // 瀑布图
+            ForEach(phases, id: \.0) { name, duration, barColor in
+                HStack(spacing: 8) {
+                    // Tag 样式的名称（统一颜色）
+                    Text(name)
+                        .font(.system(size: 9, design: .monospaced))
+                        .fontWeight(.medium)
+                        .foregroundColor(.white)
+                        .frame(width: 56)
+                        .padding(.vertical, 3)
+                        .background(tagColor.opacity(0.8))
+                        .cornerRadius(4)
+                    
+                    // 进度条（不同颜色）
+                    GeometryReader { geo in
+                        let width = timing.total > 0 ? CGFloat(duration / timing.total) * geo.size.width : 0
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(barColor)
+                            .frame(width: max(width, 2))
+                    }
+                    .frame(height: 12)
+                    
+                    // 时间（不同颜色）
+                    Text(formatMs(duration))
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(barColor)
+                        .frame(width: 50, alignment: .trailing)
+                }
+            }
+            
+            // 总计
+            HStack(spacing: 8) {
+                Text("Total")
+                    .font(.system(size: 9, design: .monospaced))
+                    .fontWeight(.medium)
+                    .foregroundColor(.black)
+                    .frame(width: 56)
+                    .padding(.vertical, 3)
+                    .background(Color.yellow.opacity(0.9))
+                    .cornerRadius(4)
+                
+                Spacer()
+                
+                Text(formatMs(timing.total))
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.yellow)
+                    .fontWeight(.bold)
+                    .frame(width: 50, alignment: .trailing)
+            }
+        }
+    }
+    
+    private func formatMs(_ interval: TimeInterval) -> String {
+        let ms = interval * 1000
+        if ms < 1 {
+            return String(format: "%.2fms", ms)
+        } else if ms < 10 {
+            return String(format: "%.1fms", ms)
+        } else {
+            return String(format: "%.0fms", ms)
         }
     }
 }

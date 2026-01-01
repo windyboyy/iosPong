@@ -7,6 +7,7 @@
 
 import Foundation
 import Network
+import dnssd
 internal import Combine
 
 // MARK: - 连接测试结果
@@ -112,20 +113,25 @@ class ConnectionTestManager: ObservableObject {
         
         isTesting = true
         currentPhase = .resolvingDNS
-        currentResult = ConnectionTestResult(domain: domain, timestamp: Date())
+        
+        // 立即创建并显示结果卡片（loading 状态）
+        let result = ConnectionTestResult(domain: domain, timestamp: Date())
+        currentResult = result
+        results.insert(result, at: 0)
+        if results.count > 20 {
+            results.removeLast()
+        }
         
         testTask = Task {
-            var result = ConnectionTestResult(domain: domain, timestamp: Date())
-            
             // 1. DNS 解析
             let dnsStart = Date()
             let (ipv4s, ipv6s, cnames) = await resolveDNS(domain: domain)
-            result.dnsLatency = Date().timeIntervalSince(dnsStart)
-            result.ipv4Addresses = ipv4s
-            result.ipv6Addresses = ipv6s
-            result.cnameRecords = cnames
             
-            currentResult = result
+            currentResult?.dnsLatency = Date().timeIntervalSince(dnsStart)
+            currentResult?.ipv4Addresses = ipv4s
+            currentResult?.ipv6Addresses = ipv6s
+            currentResult?.cnameRecords = cnames
+            updateResultInList()
             
             // 2. 并行测试 IPv4 和 IPv6 连接
             await withTaskGroup(of: Void.self) { group in
@@ -137,6 +143,7 @@ class ConnectionTestManager: ObservableObject {
                         await MainActor.run {
                             self.currentResult?.ipv4Latency = latency
                             self.currentResult?.ipv4Error = error
+                            self.updateResultInList()
                         }
                     }
                 }
@@ -153,17 +160,15 @@ class ConnectionTestManager: ObservableObject {
                         await MainActor.run {
                             self.currentResult?.ipv6Latency = latency
                             self.currentResult?.ipv6Error = error
+                            self.updateResultInList()
                         }
                     }
                 }
             }
             
-            // 3. 完成
-            if let finalResult = currentResult {
-                results.insert(finalResult, at: 0)
-                if results.count > 20 {
-                    results.removeLast()
-                }
+            // 3. 完成 - 更新已插入的结果
+            if let finalResult = currentResult, let index = results.firstIndex(where: { $0.id == finalResult.id }) {
+                results[index] = finalResult
             }
             
             currentPhase = .completed
@@ -183,13 +188,125 @@ class ConnectionTestManager: ObservableObject {
         currentResult = nil
     }
     
+    // 更新结果列表中的当前结果
+    private func updateResultInList() {
+        guard let current = currentResult,
+              let index = results.firstIndex(where: { $0.id == current.id }) else { return }
+        results[index] = current
+    }
+    
     // MARK: - DNS 解析（使用系统 DNS）
     private func resolveDNS(domain: String) async -> ([String], [String], [String]) {
         var ipv4s: [String] = []
         var ipv6s: [String] = []
-        let cnames: [String] = [] // 系统 DNS 不返回 CNAME
+        var cnames: [String] = []
         
-        // 使用 getaddrinfo 进行系统 DNS 解析
+        // 并行查询 CNAME 和 IP 地址
+        await withTaskGroup(of: Void.self) { group in
+            // 查询 CNAME（使用 DNSManager）
+            group.addTask {
+                let cnameResult = await self.queryCNAME(domain: domain)
+                await MainActor.run {
+                    cnames = cnameResult
+                }
+            }
+            
+            // 查询 IP 地址（使用系统 getaddrinfo）
+            group.addTask {
+                let (v4, v6) = await self.resolveIPAddresses(domain: domain)
+                await MainActor.run {
+                    ipv4s = v4
+                    ipv6s = v6
+                }
+            }
+        }
+        
+        return (ipv4s, ipv6s, cnames)
+    }
+    
+    // 查询 CNAME 记录
+    private func queryCNAME(domain: String) async -> [String] {
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                var sdRef: DNSServiceRef?
+                var resultData: Data?
+                
+                let status = DNSServiceQueryRecord(
+                    &sdRef,
+                    0,
+                    0,
+                    domain,
+                    UInt16(kDNSServiceType_CNAME),
+                    UInt16(kDNSServiceClass_IN),
+                    { _, _, _, errorCode, _, _, _, rdlen, rdata, _, context in
+                        guard errorCode == kDNSServiceErr_NoError,
+                              let rdata = rdata,
+                              rdlen > 0 else {
+                            return
+                        }
+                        let dataPtr = context?.assumingMemoryBound(to: Data?.self)
+                        dataPtr?.pointee = Data(bytes: rdata, count: Int(rdlen))
+                    },
+                    &resultData
+                )
+                
+                if status == kDNSServiceErr_NoError, let ref = sdRef {
+                    let fd = DNSServiceRefSockFD(ref)
+                    if fd >= 0 {
+                        let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: .global())
+                        let semaphore = DispatchSemaphore(value: 0)
+                        
+                        source.setEventHandler {
+                            DNSServiceProcessResult(ref)
+                            semaphore.signal()
+                        }
+                        source.resume()
+                        
+                        _ = semaphore.wait(timeout: .now() + 2)
+                        source.cancel()
+                    }
+                    
+                    DNSServiceRefDeallocate(ref)
+                }
+                
+                // 在回调外解析 CNAME
+                var cnames: [String] = []
+                if let data = resultData, let cname = ConnectionTestManager.parseDNSName(from: data) {
+                    cnames.append(cname)
+                }
+                
+                continuation.resume(returning: cnames)
+            }
+        }
+    }
+    
+    // 解析 DNS 名称格式
+    private static func parseDNSName(from data: Data) -> String? {
+        var result: [String] = []
+        var index = 0
+        
+        while index < data.count {
+            let length = Int(data[index])
+            if length == 0 { break }
+            
+            index += 1
+            if index + length > data.count { break }
+            
+            let labelData = data[index..<(index + length)]
+            if let label = String(data: labelData, encoding: .utf8) {
+                result.append(label)
+            }
+            index += length
+        }
+        
+        return result.isEmpty ? nil : result.joined(separator: ".")
+    }
+    
+    // 解析 IP 地址
+    private func resolveIPAddresses(domain: String) async -> ([String], [String]) {
+        var ipv4s: [String] = []
+        var ipv6s: [String] = []
+        
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             DispatchQueue.global(qos: .userInitiated).async {
                 var hints = addrinfo()
@@ -243,7 +360,7 @@ class ConnectionTestManager: ObservableObject {
             }
         }
         
-        return (ipv4s, ipv6s, cnames)
+        return (ipv4s, ipv6s)
     }
     
     // MARK: - 连接测试
@@ -281,7 +398,7 @@ class ConnectionTestManager: ObservableObject {
                     continuation.resume(returning: (nil, L10n.shared.connectionTimeout))
                 }
             }
-            DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: timeoutWorkItem)
+            DispatchQueue.global().asyncAfter(deadline: .now() + 3, execute: timeoutWorkItem)
             
             connection.stateUpdateHandler = { state in
                 guard !hasResumed else { return }

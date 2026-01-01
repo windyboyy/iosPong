@@ -234,6 +234,14 @@ struct L10n {
     var noRecord: String { lang == .chinese ? "无记录" : "No record" }
     var connectionTimeout: String { lang == .chinese ? "连接超时" : "Connection timeout" }
     var connectionCancelled: String { lang == .chinese ? "连接已取消" : "Connection cancelled" }
+    var ready: String { lang == .chinese ? "就绪" : "Ready" }
+    var targetDomain: String { lang == .chinese ? "目标域名" : "Target Domain" }
+    var quickAccess: String { lang == .chinese ? "快捷访问" : "Quick Access" }
+    var connectionTestIntro: String { lang == .chinese ? "这个工具能帮你做什么？" : "What can this tool do?" }
+    var connectionTestFeature1: String { lang == .chinese ? "检测目标域名的 DNS 解析情况" : "Check DNS resolution" }
+    var connectionTestFeature2: String { lang == .chinese ? "分别测试 IPv4 和 IPv6 的连接延迟，找出最优协议" : "Test IPv4 & IPv6 latency, find the optimal protocol" }
+    var connectionTestFeature3: String { lang == .chinese ? "诊断网络连通性问题，判断是 DNS 故障还是连接故障" : "Diagnose connectivity issues: DNS or connection failure" }
+    var systemDNS: String { lang == .chinese ? "系统DNS" : "System DNS" }
     
     // MARK: - IP 查询
     var ipQuery: String { lang == .chinese ? "IP查询" : "IP Query" }
@@ -563,6 +571,7 @@ struct L10n {
     var configureAndStart: String { lang == .chinese ? "配置并开始抓包" : "Configure and Start" }
     var startCapture: String { lang == .chinese ? "开始抓包" : "Start Capture" }
     var connecting: String { lang == .chinese ? "连接中..." : "Connecting..." }
+    var pureNetwork: String { lang == .chinese ? "纯网络" : "Net Only" }
     var stopCapture: String { lang == .chinese ? "停止抓包" : "Stop Capture" }
     var disconnecting: String { lang == .chinese ? "断开中..." : "Disconnecting..." }
     var firstTimeSetup: String { lang == .chinese ? "首次使用需要配置 VPN，点击上方按钮开始" : "First time setup requires VPN configuration, tap button above to start" }
