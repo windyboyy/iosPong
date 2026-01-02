@@ -6,12 +6,6 @@
 //
 
 import SwiftUI
-import SafariServices
-
-// MARK: - URL Identifiable 扩展
-extension URL: @retroactive Identifiable {
-    public var id: String { absoluteString }
-}
 
 // MARK: - 工具类型
 enum NetworkTool: CaseIterable, Identifiable {
@@ -109,14 +103,8 @@ struct HomeView: View {
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var appSettings = AppSettings.shared
     @State private var selectedTool: NetworkTool?
-    @State private var safariURL: URL?
     @State private var showQuickDiagnosis = false
-    
-    private var huatuoURL: URL {
-        languageManager.currentLanguage == .chinese
-            ? URL(string: "https://itango.tencent.com/app/data/huatuo")!
-            : URL(string: "https://itango.tencent.com/app/data/huatuoen")!
-    }
+    @State private var showLatencyTest = false
     
     private var l10n: L10n { L10n.shared }
     
@@ -214,8 +202,8 @@ struct HomeView: View {
             .navigationDestination(isPresented: $showQuickDiagnosis) {
                 QuickDiagnosisView()
             }
-            .sheet(item: $safariURL) { url in
-                SafariView(url: url)
+            .navigationDestination(isPresented: $showLatencyTest) {
+                LatencyTestView()
             }
         }
     }
@@ -244,11 +232,15 @@ struct HomeView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 28)
             .background(
-                Image("dig_bg")
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.2, green: 0.4, blue: 0.9),
+                        Color(red: 0.6, green: 0.3, blue: 0.9)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
             )
-            .clipped()
             .cornerRadius(16)
             .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
         }
@@ -280,12 +272,12 @@ struct HomeView: View {
                 .padding(.horizontal, 4)
             
             QuickActionButton(
-                title: l10n.huatuoPlatform,
-                subtitle: l10n.huatuoDesc,
-                icon: "safari",
+                title: l10n.latencyTest,
+                subtitle: l10n.latencyTestDesc,
+                icon: "speedometer",
                 color: .orange
             ) {
-                safariURL = huatuoURL
+                showLatencyTest = true
             }
         }
     }
@@ -454,15 +446,4 @@ struct QuickActionButton: View {
 #Preview {
     HomeView()
         .environmentObject(LanguageManager.shared)
-}
-
-// MARK: - Safari 视图包装器
-struct SafariView: UIViewControllerRepresentable {
-    let url: URL
-    
-    func makeUIViewController(context: Context) -> SFSafariViewController {
-        SFSafariViewController(url: url)
-    }
-    
-    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
 }

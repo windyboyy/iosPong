@@ -680,8 +680,20 @@ struct DataUsageEstimateView: View {
 struct AppLatencyView: View {
     @StateObject private var speedManager = SpeedTestManager.shared
     
+    private var l10n: L10n { L10n.shared }
+    
     var body: some View {
         VStack(spacing: 16) {
+            // HTTP HEAD 请求说明
+            HStack(spacing: 4) {
+                Image(systemName: "info.circle")
+                    .font(.caption2)
+                Text(l10n.appLatencyNote)
+                    .font(.caption2)
+            }
+            .foregroundColor(.secondary)
+            .padding(.horizontal, 4)
+            
             // 第一分类（腾讯系 / Tech Giants）
             AppLatencySectionView(
                 title: speedManager.firstCategoryTitle,

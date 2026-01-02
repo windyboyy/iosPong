@@ -252,7 +252,7 @@ class QuickDiagnosisManager: ObservableObject {
         
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
-        request.timeoutInterval = 3
+        request.timeoutInterval = 5
         
         do {
             let (_, response) = try await URLSession.shared.data(for: request)

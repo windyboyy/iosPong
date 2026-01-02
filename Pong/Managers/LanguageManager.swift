@@ -158,7 +158,7 @@ struct L10n {
     
     // MARK: - 首页
     var quickDiagnosis: String { lang == .chinese ? "一键诊断" : "Quick Diagnosis" }
-    var quickDiagnosisDesc: String { lang == .chinese ? "输入诊断码，快速定位网络问题" : "Enter diagnosis code to locate network issues" }
+    var quickDiagnosisDesc: String { lang == .chinese ? "输入目标地址，快速定位网络问题" : "Enter target address to locate network issues" }
     var quickActions: String { lang == .chinese ? "快速诊断" : "Quick Actions" }
     var huatuoPlatform: String { lang == .chinese ? "华佗诊断平台" : "Huatuo Platform" }
     var huatuoDesc: String { lang == .chinese ? "查看网络诊断数据" : "View network diagnosis data" }
@@ -640,6 +640,36 @@ struct L10n {
     // MARK: - 私有 IP
     var localNetwork: String { lang == .chinese ? "本地网络" : "Local Network" }
     var localRegion: String { lang == .chinese ? "本地" : "Local" }
+    
+    // MARK: - 延迟测试
+    var latencyTest: String { lang == .chinese ? "延迟测试" : "Latency Test" }
+    var latencyTestDesc: String { lang == .chinese ? "测试常用网站的访问延迟" : "Test access latency to common websites" }
+    var customTargets: String { lang == .chinese ? "自定义目标" : "Custom Targets" }
+    var defaultTargets: String { lang == .chinese ? "默认目标" : "Default Targets" }
+    var addCustomTarget: String { lang == .chinese ? "添加自定义目标" : "Add Custom Target" }
+    var labelTitle: String { lang == .chinese ? "名称" : "Name" }
+    var labelPlaceholder: String { lang == .chinese ? "输入名称" : "Enter name" }
+    var urlPlaceholder: String { lang == .chinese ? "输入 URL 地址" : "Enter URL" }
+    var urlHint: String { lang == .chinese ? "如不输入协议，将自动添加 https://" : "https:// will be added if no protocol specified" }
+    var totalTime: String { lang == .chinese ? "总耗时" : "Total Time" }
+    var dnsLookupTime: String { lang == .chinese ? "DNS 查询" : "DNS Lookup" }
+    var tcpConnectionTime: String { lang == .chinese ? "TCP 连接" : "TCP Connection" }
+    var tlsHandshakeTime: String { lang == .chinese ? "TLS 握手" : "TLS Handshake" }
+    var requestSentTime: String { lang == .chinese ? "请求发送" : "Request Sent" }
+    var responseReceivedTime: String { lang == .chinese ? "响应接收" : "Response Received" }
+    var connectionReused: String { lang == .chinese ? "连接已复用（跳过 DNS/TCP/TLS）" : "Connection reused (DNS/TCP/TLS skipped)" }
+    var totalTimeNote: String { lang == .chinese ? "总耗时包含响应体下载时间，非纯网络延迟" : "Total time includes response body download, not pure network latency" }
+    
+    // 应用延迟测试说明
+    var appLatencyNote: String { lang == .chinese ? "下方使用 HTTP HEAD 请求，仅测量连接延迟，不包含响应内容传输时间" : "Using HTTP HEAD request below, measures connection latency only, excludes response body transfer time" }
+    
+    // 分类相关
+    var categoryTitle: String { lang == .chinese ? "分类" : "Category" }
+    var noCategoryOption: String { lang == .chinese ? "不分类" : "No Category" }
+    var createNewCategory: String { lang == .chinese ? "创建新分类" : "Create New Category" }
+    var categoryNamePlaceholder: String { lang == .chinese ? "输入分类名称" : "Enter category name" }
+    var createCategoryMessage: String { lang == .chinese ? "输入新分类的名称" : "Enter the name for the new category" }
+    var categoryHint: String { lang == .chinese ? "选择分类便于管理，也可创建自定义分类" : "Select a category for better organization, or create your own" }
     
     // MARK: - 抓包设置指南
     var setupGuideStep1Title: String { lang == .chinese ? "申请 Network Extension 权限" : "Apply for Network Extension Permission" }
