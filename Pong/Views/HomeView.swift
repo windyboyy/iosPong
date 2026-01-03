@@ -7,6 +7,32 @@
 
 import SwiftUI
 
+// MARK: - 工具分组
+enum ToolCategory: CaseIterable {
+    case networkLayer      // 网络层工具
+    case applicationLayer  // 应用层工具
+    case systemTools       // 系统工具
+    
+    func title(_ l10n: L10n) -> String {
+        switch self {
+        case .networkLayer: return l10n.networkLayerTools
+        case .applicationLayer: return l10n.applicationLayerTools
+        case .systemTools: return l10n.systemTools
+        }
+    }
+    
+    var tools: [NetworkTool] {
+        switch self {
+        case .networkLayer:
+            return [.ping, .trace, .dns, .tcp, .udp]
+        case .applicationLayer:
+            return [.httpGet, .connectionTest, .latencyTest]
+        case .systemTools:
+            return [.deviceInfo, .packetCapture]
+        }
+    }
+}
+
 // MARK: - 工具类型
 enum NetworkTool: CaseIterable, Identifiable {
     case ping
@@ -18,6 +44,11 @@ enum NetworkTool: CaseIterable, Identifiable {
     case deviceInfo
     case connectionTest
     case packetCapture
+    case latencyTest
+    
+    static var allCases: [NetworkTool] {
+        [.ping, .dns, .tcp, .udp, .trace, .httpGet, .deviceInfo, .connectionTest, .packetCapture, .latencyTest]
+    }
     
     var id: String { 
         switch self {
@@ -30,6 +61,7 @@ enum NetworkTool: CaseIterable, Identifiable {
         case .httpGet: return "httpGet"
         case .packetCapture: return "packetCapture"
         case .deviceInfo: return "deviceInfo"
+        case .latencyTest: return "latencyTest"
         }
     }
     
@@ -44,6 +76,7 @@ enum NetworkTool: CaseIterable, Identifiable {
         case .httpGet: return l10n.httpGet
         case .packetCapture: return l10n.packetCapture
         case .deviceInfo: return l10n.deviceInfo
+        case .latencyTest: return l10n.latencyTest
         }
     }
     
@@ -53,11 +86,12 @@ enum NetworkTool: CaseIterable, Identifiable {
         case .trace: return "point.topleft.down.curvedto.point.bottomright.up"
         case .tcp: return "arrow.left.arrow.right"
         case .udp: return "paperplane"
-        case .dns: return "server.rack"
+        case .dns: return "list.bullet.rectangle"
         case .connectionTest: return "bolt.horizontal.fill"
         case .httpGet: return "globe"
         case .packetCapture: return "antenna.radiowaves.left.and.right"
         case .deviceInfo: return "iphone.gen3"
+        case .latencyTest: return "chart.bar.xaxis"
         }
     }
     
@@ -72,6 +106,7 @@ enum NetworkTool: CaseIterable, Identifiable {
         case .httpGet: return .teal
         case .packetCapture: return .pink
         case .deviceInfo: return .indigo
+        case .latencyTest: return .orange
         }
     }
     
@@ -86,6 +121,7 @@ enum NetworkTool: CaseIterable, Identifiable {
         case .httpGet: return l10n.httpGetDesc
         case .packetCapture: return l10n.packetCaptureDesc
         case .deviceInfo: return l10n.deviceInfoDesc
+        case .latencyTest: return l10n.latencyTestDesc
         }
     }
     
@@ -104,7 +140,6 @@ struct HomeView: View {
     @StateObject private var appSettings = AppSettings.shared
     @State private var selectedTool: NetworkTool?
     @State private var showQuickDiagnosis = false
-    @State private var showLatencyTest = false
     
     private var l10n: L10n { L10n.shared }
     
@@ -175,22 +210,10 @@ struct HomeView: View {
                     // 一键诊断入口
                     quickDiagnosisEntry
                     
-                    // 工具网格（旧版显示标题）
-                    if appSettings.homeStyle == .classic {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text(l10n.engineerZone)
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .padding(.horizontal, 4)
-                            
-                            toolsGridContent
-                        }
-                    } else {
-                        toolsGrid
+                    // 按分类展示工具
+                    ForEach(ToolCategory.allCases, id: \.self) { category in
+                        toolCategorySection(category)
                     }
-                    
-                    // 快速操作
-                    quickActions
                 }
                 .padding()
             }
@@ -201,9 +224,6 @@ struct HomeView: View {
             }
             .navigationDestination(isPresented: $showQuickDiagnosis) {
                 QuickDiagnosisView()
-            }
-            .navigationDestination(isPresented: $showLatencyTest) {
-                LatencyTestView()
             }
         }
     }
@@ -247,37 +267,23 @@ struct HomeView: View {
         .buttonStyle(.plain)
     }
     
-    // MARK: - 工具网格
-    private var toolsGrid: some View {
-        toolsGridContent
-    }
-    
-    private var toolsGridContent: some View {
-        let columns = Array(repeating: GridItem(.flexible()), count: appSettings.toolsPerRow)
-        return LazyVGrid(columns: columns, spacing: 12) {
-            ForEach(NetworkTool.allCases) { tool in
-                ToolCard(tool: tool, l10n: l10n, columnsCount: appSettings.toolsPerRow) {
-                    selectedTool = tool
-                }
-            }
-        }
-    }
-    
-    // MARK: - 快速操作
-    private var quickActions: some View {
+    // MARK: - 工具分类区域
+    private func toolCategorySection(_ category: ToolCategory) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(l10n.quickActions)
-                .font(appSettings.homeStyle == .classic ? .title2 : .headline)
-                .fontWeight(appSettings.homeStyle == .classic ? .bold : .regular)
+            // 分类标题
+            Text(category.title(l10n))
+                .font(.headline)
+                .foregroundColor(.secondary)
                 .padding(.horizontal, 4)
             
-            QuickActionButton(
-                title: l10n.latencyTest,
-                subtitle: l10n.latencyTestDesc,
-                icon: "speedometer",
-                color: .orange
-            ) {
-                showLatencyTest = true
+            // 工具网格
+            let columns = Array(repeating: GridItem(.flexible()), count: appSettings.toolsPerRow)
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(category.tools) { tool in
+                    ToolCard(tool: tool, l10n: l10n, columnsCount: appSettings.toolsPerRow) {
+                        selectedTool = tool
+                    }
+                }
             }
         }
     }
@@ -304,6 +310,8 @@ struct HomeView: View {
             PacketCaptureView()
         case .deviceInfo:
             DeviceInfoView()
+        case .latencyTest:
+            LatencyTestView()
         }
     }
 }
@@ -385,61 +393,6 @@ struct ToolCard: View {
         }
         .buttonStyle(.plain)
         .disabled(!tool.isEnabled)
-    }
-}
-
-// MARK: - 快速操作按钮
-struct QuickActionButton: View {
-    @Environment(\.colorScheme) private var colorScheme
-    let title: String
-    let subtitle: String
-    let icon: String
-    let color: Color
-    let action: () -> Void
-    
-    private var cardBackground: Color {
-        colorScheme == .dark ? Color(.secondarySystemBackground) : Color(.systemBackground)
-    }
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 16) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(color.opacity(colorScheme == .dark ? 0.25 : 0.15))
-                        .frame(width: 48, height: 48)
-                    
-                    Image(systemName: icon)
-                        .font(.title3)
-                        .foregroundColor(color)
-                }
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.primary)
-                    
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding()
-            .background(cardBackground)
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(colorScheme == .dark ? Color.white.opacity(0.1) : Color.clear, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
     }
 }
 

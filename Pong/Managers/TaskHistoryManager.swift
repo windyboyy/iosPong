@@ -34,7 +34,7 @@ enum TaskType: String, Codable, CaseIterable {
         switch self {
         case .ping: return "network"
         case .traceroute: return "point.topleft.down.curvedto.point.bottomright.up"
-        case .dns: return "globe"
+        case .dns: return "list.bullet.rectangle"
         case .tcp: return "arrow.left.arrow.right"
         case .udp: return "paperplane"
         case .speedTest: return "speedometer"

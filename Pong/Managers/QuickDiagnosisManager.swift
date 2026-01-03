@@ -33,7 +33,7 @@ enum DiagnosisTaskType: String, Codable {
         case .ping: return "network"
         case .tcp: return "arrow.left.arrow.right"
         case .udp: return "paperplane"
-        case .dns: return "globe"
+        case .dns: return "list.bullet.rectangle"
         case .trace: return "point.topleft.down.curvedto.point.bottomright.up"
         }
     }

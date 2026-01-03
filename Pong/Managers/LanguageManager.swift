@@ -641,6 +641,11 @@ struct L10n {
     var localNetwork: String { lang == .chinese ? "本地网络" : "Local Network" }
     var localRegion: String { lang == .chinese ? "本地" : "Local" }
     
+    // MARK: - 首页分组
+    var networkLayerTools: String { lang == .chinese ? "网络层工具" : "Network Layer" }
+    var applicationLayerTools: String { lang == .chinese ? "应用层工具" : "Application Layer" }
+    var systemTools: String { lang == .chinese ? "系统工具" : "System Tools" }
+    
     // MARK: - 延迟测试
     var latencyTest: String { lang == .chinese ? "延迟测试" : "Latency Test" }
     var latencyTestDesc: String { lang == .chinese ? "测试常用网站的访问延迟" : "Test access latency to common websites" }
