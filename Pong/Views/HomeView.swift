@@ -26,7 +26,7 @@ enum ToolCategory: CaseIterable {
         case .networkLayer:
             return [.ping, .trace, .dns, .tcp, .udp]
         case .applicationLayer:
-            return [.httpGet, .connectionTest, .latencyTest]
+            return [.httpGet, .latencyTest, .connectionTest]
         case .systemTools:
             return [.deviceInfo, .packetCapture]
         }
@@ -42,12 +42,12 @@ enum NetworkTool: CaseIterable, Identifiable {
     case trace
     case httpGet
     case deviceInfo
-    case connectionTest
-    case packetCapture
     case latencyTest
+    case packetCapture
+    case connectionTest
     
     static var allCases: [NetworkTool] {
-        [.ping, .dns, .tcp, .udp, .trace, .httpGet, .deviceInfo, .connectionTest, .packetCapture, .latencyTest]
+        [.ping, .dns, .tcp, .udp, .trace, .httpGet, .deviceInfo, .latencyTest, .packetCapture, .connectionTest]
     }
     
     var id: String { 

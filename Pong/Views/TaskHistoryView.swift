@@ -12,12 +12,6 @@ struct TaskHistoryView: View {
     @EnvironmentObject var languageManager: LanguageManager
     @State private var selectedFilter: TaskType?
     @State private var showClearAlert = false
-    @State private var showUploadAllAlert = false
-    @State private var isUploading = false
-    @State private var uploadingRecordId: String?
-    @State private var showUploadToast = false
-    @State private var uploadToastMessage = ""
-    @State private var uploadToastSuccess = false
     @State private var showSwipeHint = false
     
     private var l10n: L10n { L10n.shared }
@@ -79,30 +73,12 @@ struct TaskHistoryView: View {
             }
             if !historyManager.records.isEmpty {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 12) {
-                        // 全部上传按钮
-                        if !uploadableRecords.isEmpty {
-                            Button {
-                                showUploadAllAlert = true
-                            } label: {
-                                if isUploading && uploadingRecordId == nil {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle())
-                                } else {
-                                    Image(systemName: "icloud.and.arrow.up")
-                                        .foregroundColor(.blue)
-                                }
-                            }
-                            .disabled(isUploading)
-                        }
-                        
-                        // 清空按钮
-                        Button {
-                            showClearAlert = true
-                        } label: {
-                            Image(systemName: "trash")
-                                .foregroundColor(.red)
-                        }
+                    // 清空按钮
+                    Button {
+                        showClearAlert = true
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundColor(.red)
                     }
                 }
             }
@@ -117,35 +93,12 @@ struct TaskHistoryView: View {
         } message: {
             Text(l10n.clearHistoryMessage)
         }
-        .alert(l10n.uploadAllConfirm, isPresented: $showUploadAllAlert) {
-            Button(l10n.cancel, role: .cancel) { }
-            Button(l10n.confirm) {
-                Task {
-                    await uploadAllRecords()
-                }
-            }
-        } message: {
-            Text(l10n.uploadAllMessage)
-        }
-        .overlay(alignment: .top) {
-            if showUploadToast {
-                UploadToastView(message: uploadToastMessage, isSuccess: uploadToastSuccess)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    .padding(.top, 60)
-            }
-        }
-        .animation(.easeInOut(duration: 0.3), value: showUploadToast)
         .onAppear {
             historyManager.cleanExpiredRecords()
         }
         .alert(l10n.swipeHint, isPresented: $showSwipeHint) {
             Button(l10n.confirm, role: .cancel) { }
         }
-    }
-    
-    /// 可上传的记录（排除测速）
-    private var uploadableRecords: [TaskHistoryRecord] {
-        filteredRecords.filter { $0.type != .speedTest }
     }
     
     // MARK: - 筛选栏
@@ -205,31 +158,9 @@ struct TaskHistoryView: View {
                         NavigationLink {
                             TaskHistoryDetailView(record: record)
                         } label: {
-                            TaskHistoryRow(record: record, isUploading: uploadingRecordId == record.id)
+                            TaskHistoryRow(record: record)
                         }
-                        .contextMenu {
-                            // 上传按钮（测速不支持）
-                            if record.type != .speedTest {
-                                Button {
-                                    Task {
-                                        await uploadRecord(record)
-                                    }
-                                } label: {
-                                    Label(l10n.uploadToServer, systemImage: "icloud.and.arrow.up")
-                                }
-                                .disabled(isUploading)
-                            }
-                            
-                            // 删除按钮
-                            Button(role: .destructive) {
-                                withAnimation {
-                                    historyManager.deleteRecord(record)
-                                }
-                            } label: {
-                                Label(l10n.delete, systemImage: "trash")
-                            }
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             // 删除按钮（红色）
                             Button(role: .destructive) {
                                 withAnimation {
@@ -239,19 +170,6 @@ struct TaskHistoryView: View {
                                 Label(l10n.delete, systemImage: "trash")
                             }
                             .tint(.red)
-                            
-                            // 上传按钮（蓝色，测速不支持）
-                            if record.type != .speedTest {
-                                Button {
-                                    Task {
-                                        await uploadRecord(record)
-                                    }
-                                } label: {
-                                    Label(l10n.uploadToServer, systemImage: "icloud.and.arrow.up")
-                                }
-                                .tint(.blue)
-                                .disabled(isUploading)
-                            }
                         }
                     }
                 } header: {
@@ -272,76 +190,6 @@ struct TaskHistoryView: View {
             }
         }
         .listStyle(.insetGrouped)
-    }
-    
-    // MARK: - 上传单条记录
-    private func uploadRecord(_ record: TaskHistoryRecord) async {
-        // 检查是否为游客
-        let userManager = UserManager.shared
-        if let user = userManager.currentUser, user.isGuest {
-            uploadToastSuccess = false
-            uploadToastMessage = l10n.guestCannotUpload
-            showUploadToastAnimation()
-            return
-        }
-        
-        isUploading = true
-        uploadingRecordId = record.id
-        
-        let success = await historyManager.uploadRecord(record)
-        
-        isUploading = false
-        uploadingRecordId = nil
-        
-        uploadToastSuccess = success
-        uploadToastMessage = success ? l10n.uploadSuccess : l10n.uploadFailed
-        showUploadToastAnimation()
-    }
-    
-    // MARK: - 上传所有记录
-    private func uploadAllRecords() async {
-        // 检查是否为游客
-        let userManager = UserManager.shared
-        if let user = userManager.currentUser, user.isGuest {
-            uploadToastSuccess = false
-            uploadToastMessage = l10n.guestCannotUpload
-            showUploadToastAnimation()
-            return
-        }
-        
-        guard !uploadableRecords.isEmpty else {
-            uploadToastSuccess = false
-            uploadToastMessage = l10n.noRecordsToUpload
-            showUploadToastAnimation()
-            return
-        }
-        
-        isUploading = true
-        uploadingRecordId = nil
-        
-        let result = await historyManager.uploadRecords(uploadableRecords)
-        
-        isUploading = false
-        
-        uploadToastSuccess = result.failed == 0
-        if result.success > 0 {
-            uploadToastMessage = "\(l10n.uploadSuccess) (\(result.success) \(l10n.records))"
-        } else {
-            uploadToastMessage = l10n.uploadFailed
-        }
-        showUploadToastAnimation()
-    }
-    
-    // MARK: - 显示 Toast 动画
-    private func showUploadToastAnimation() {
-        withAnimation {
-            showUploadToast = true
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation {
-                showUploadToast = false
-            }
-        }
     }
 }
 
@@ -1231,7 +1079,6 @@ struct FilterChip: View {
 // MARK: - 历史记录行
 struct TaskHistoryRow: View {
     let record: TaskHistoryRecord
-    var isUploading: Bool = false
     @EnvironmentObject var languageManager: LanguageManager
     
     private var l10n: L10n { L10n.shared }
@@ -1244,14 +1091,9 @@ struct TaskHistoryRow: View {
                     .fill(statusColor.opacity(0.15))
                     .frame(width: 44, height: 44)
                 
-                if isUploading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                } else {
-                    Image(systemName: record.type.iconName)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(statusColor)
-                }
+                Image(systemName: record.type.iconName)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(statusColor)
             }
             
             // 内容
@@ -1316,27 +1158,6 @@ struct TaskHistoryRow: View {
                 Capsule()
                     .fill(statusColor.opacity(0.12))
             )
-    }
-}
-
-// MARK: - 上传 Toast 视图
-struct UploadToastView: View {
-    let message: String
-    let isSuccess: Bool
-    
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: isSuccess ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .foregroundColor(isSuccess ? .green : .red)
-            Text(message)
-                .font(.subheadline)
-                .foregroundColor(.white)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(Color.black.opacity(0.8))
-        .cornerRadius(20)
-        .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
     }
 }
 

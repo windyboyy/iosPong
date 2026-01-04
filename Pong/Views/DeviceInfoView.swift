@@ -51,9 +51,7 @@ struct DeviceInfoView: View {
             // 短暂延迟让页面先渲染，避免卡顿感
             try? await Task.sleep(nanoseconds: 100_000_000)
             await manager.fetchIPInfoOnly()
-            withAnimation(.easeOut(duration: 0.25)) {
-                isInitialLoading = false
-            }
+            isInitialLoading = false
         }
     }
     
@@ -77,14 +75,11 @@ struct DeviceInfoView: View {
                             .foregroundColor(.secondary)
                     }
                 }
-            } else if let error = manager.errorMessage {
+            } else if manager.errorMessage != nil {
                 Section(l10n.publicIPInfo) {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
-                        Text(error)
-                            .foregroundColor(.secondary)
-                    }
+                    InfoRow(title: l10n.publicIP, value: l10n.fetchFailed, l10n: l10n)
+                    InfoRow(title: l10n.location, value: l10n.fetchFailed, l10n: l10n)
+                    InfoRow(title: l10n.carrier, value: l10n.fetchFailed, l10n: l10n)
                 }
             }
             
@@ -141,9 +136,9 @@ struct DeviceInfoView: View {
                     .cornerRadius(8)
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .padding(.top, 8)
+                    .animation(.easeInOut(duration: 0.3), value: showRefreshToast)
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: showRefreshToast)
     }
 }
 

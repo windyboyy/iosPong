@@ -447,11 +447,12 @@ struct L10n {
     var noResponse: String { lang == .chinese ? "无响应" : "No Response" }
     
     // MARK: - 设备信息页面
-    var publicIPInfo: String { lang == .chinese ? "公网 IP 信息" : "Public IP Info" }
+    var publicIPInfo: String { lang == .chinese ? "用户公网 IP" : "Public IP" }
     var publicIP: String { lang == .chinese ? "公网 IP" : "Public IP" }
     var location: String { lang == .chinese ? "归属地" : "Location" }
     var carrier: String { lang == .chinese ? "运营商" : "Carrier" }
     var fetching: String { lang == .chinese ? "正在获取..." : "Fetching..." }
+    var fetchFailed: String { lang == .chinese ? "地址获取失败" : "Failed to fetch" }
     var deviceInfoSection: String { lang == .chinese ? "设备信息" : "Device Info" }
     var deviceName: String { lang == .chinese ? "设备名称" : "Device Name" }
     var deviceModel: String { lang == .chinese ? "设备型号" : "Device Model" }
