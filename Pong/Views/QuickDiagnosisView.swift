@@ -248,26 +248,19 @@ struct QuickDiagnosisView: View {
         VStack(spacing: 16) {
             // 顶部图标和标题（仅在 idle 状态显示完整版）
             if manager.state == .idle {
-                VStack(spacing: 16) {
-                    ZStack {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [.gradientBlue, .gradientPurple],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 80, height: 80)
-                        
-                        Image(systemName: "wand.and.stars")
-                            .font(.system(size: 36))
-                            .foregroundColor(.white)
-                    }
+                VStack(spacing: 8) {
+                    AppLogoView(size: 80, showText: false)
                     
                     Text(l10n.quickDiagnosis)
                         .font(.title)
                         .fontWeight(.bold)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.gradientBlue, .gradientPurple],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
                     
                     Text(l10n.enterTargetAddress)
                         .font(.subheadline)
@@ -322,7 +315,7 @@ struct QuickDiagnosisView: View {
                         .background(
                             LinearGradient(
                                 colors: targetAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty 
-                                    ? [Color.gray, Color.gray] 
+                                    ? [Color.gradientBlue.opacity(0.4), Color.gradientPurple.opacity(0.4)] 
                                     : [Color.gradientBlue, Color.gradientPurple],
                                 startPoint: .leading,
                                 endPoint: .trailing

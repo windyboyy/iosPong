@@ -39,25 +39,12 @@ struct AboutView: View {
         List {
             // App 图标和名称
             Section {
-                VStack(spacing: 12) {
-                    // App 图标 - 使用 App 的 Logo
-                    if let appIcon = UIImage(named: "AppIcon") ?? Bundle.main.icon {
-                        Image(uiImage: appIcon)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 80, height: 80)
-                            .cornerRadius(18)
-                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                    } else {
-                        Image(systemName: "app.fill")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 80, height: 80)
-                            .foregroundColor(.blue)
-                    }
+                VStack(spacing: 8) {
+                    // App Logo
+                    AppLogoView(size: 80, showText: false)
                     
                     // App 名称
-                    Text("iTango")
+                    Text("Pong")
                         .font(.title2)
                         .fontWeight(.bold)
                     
