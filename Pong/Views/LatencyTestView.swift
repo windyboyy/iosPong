@@ -113,7 +113,7 @@ struct LatencyTestView: View {
                         } else {
                             Image(systemName: "play.circle.fill")
                                 .font(.title2)
-                                .foregroundColor(.blue)
+                                .foregroundColor(Color.accentColor)
                         }
                     }
                     .disabled(manager.isTesting)
@@ -296,16 +296,6 @@ struct LatencyResultCard: View {
             return .red
         }
     }
-    
-    private func timingStageColor(_ latency: Double) -> Color {
-        if latency < 50 {
-            return .green
-        } else if latency < 150 {
-            return .orange
-        } else {
-            return .red
-        }
-    }
 }
 
 // MARK: - 延迟详情视图
@@ -330,49 +320,14 @@ struct LatencyDetailView: View {
                     Text(l10n.overview)
                 }
                 
-                // Timing 信息
+                // Timing 瀑布图
                 Section {
                     if let timing = result.timing {
-                        LabeledContent(l10n.totalTime) {
-                            Text(LanguageManager.formatLatency(timing.totalTime))
-                                .foregroundColor(latencyColor(timing.totalTime))
-                        }
-                        if let dns = timing.dnsLookup, dns > 0 {
-                            LabeledContent(l10n.dnsLookupTime) {
-                                Text(LanguageManager.formatLatency(dns))
-                                    .foregroundColor(timingStageColor(dns))
-                            }
-                        }
-                        if let tcp = timing.tcpConnection, tcp > 0 {
-                            LabeledContent(l10n.tcpConnectionTime) {
-                                Text(LanguageManager.formatLatency(tcp))
-                                    .foregroundColor(timingStageColor(tcp))
-                            }
-                        }
-                        if let tls = timing.tlsHandshake, tls > 0 {
-                            LabeledContent(l10n.tlsHandshakeTime) {
-                                Text(LanguageManager.formatLatency(tls))
-                                    .foregroundColor(timingStageColor(tls))
-                            }
-                        }
-                        if let req = timing.requestSent, req > 0 {
-                            LabeledContent(l10n.requestSentTime) {
-                                Text(LanguageManager.formatLatency(req))
-                                    .foregroundColor(timingStageColor(req))
-                            }
-                        }
-                        if let res = timing.responseReceived, res > 0 {
-                            LabeledContent(l10n.responseReceivedTime) {
-                                Text(LanguageManager.formatLatency(res))
-                                    .foregroundColor(timingStageColor(res))
-                            }
-                        }
-                        // 如果连接被复用，显示提示
-                        if timing.dnsLookup == nil && timing.tcpConnection == nil {
-                            Text(l10n.connectionReused)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
+                        LatencyTimingWaterfallView(
+                            timing: timing,
+                            showConnectionReused: timing.dnsLookup == nil && timing.tcpConnection == nil,
+                            showTotalTimeNote: true
+                        )
                     } else if let latency = result.latency {
                         LabeledContent(l10n.totalTime) {
                             Text(LanguageManager.formatLatency(latency))
@@ -384,8 +339,6 @@ struct LatencyDetailView: View {
                     }
                 } header: {
                     Text("Timing")
-                } footer: {
-                    Text(l10n.totalTimeNote)
                 }
                 
                 // Headers 信息
@@ -433,16 +386,6 @@ struct LatencyDetailView: View {
         if latency < 600 {
             return .green
         } else if latency < 1000 {
-            return .orange
-        } else {
-            return .red
-        }
-    }
-    
-    private func timingStageColor(_ latency: Double) -> Color {
-        if latency < 50 {
-            return .green
-        } else if latency < 150 {
             return .orange
         } else {
             return .red
@@ -659,6 +602,141 @@ struct NewCategorySheet: View {
 
 // MARK: - LatencyResult Equatable for Sheet
 // 已移动到 LatencyTestManager 中正确实现
+
+// MARK: - Timing 瀑布图
+struct LatencyTimingWaterfallView: View {
+    let timing: LatencyTiming
+    var showConnectionReused: Bool = false
+    var showTotalTimeNote: Bool = false
+    @Environment(\.colorScheme) private var colorScheme
+    
+    private var l10n: L10n { L10n.shared }
+    
+    // 定义各阶段的颜色
+    private let phaseColors: [String: Color] = [
+        "DNS": .cyan,
+        "TCP": .green,
+        "TLS": .orange,
+        "Request": .blue,
+        "Response": .purple
+    ]
+    
+    private var phases: [(name: String, duration: Double, color: Color)] {
+        var result: [(String, Double, Color)] = []
+        
+        if let dns = timing.dnsLookup, dns > 0 {
+            result.append(("DNS", dns, phaseColors["DNS"]!))
+        }
+        if let tcp = timing.tcpConnection, tcp > 0 {
+            result.append(("TCP", tcp, phaseColors["TCP"]!))
+        }
+        if let tls = timing.tlsHandshake, tls > 0 {
+            result.append(("TLS", tls, phaseColors["TLS"]!))
+        }
+        if let req = timing.requestSent, req > 0 {
+            result.append(("Request", req, phaseColors["Request"]!))
+        }
+        if let res = timing.responseReceived, res > 0 {
+            result.append(("Response", res, phaseColors["Response"]!))
+        }
+        
+        return result
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // 瀑布图各阶段
+            ForEach(Array(phases.enumerated()), id: \.element.name) { index, phase in
+                VStack(spacing: 0) {
+                    HStack(spacing: 12) {
+                        // 阶段名称
+                        Text(phase.name)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .frame(width: 70, alignment: .leading)
+                        
+                        // 进度条
+                        GeometryReader { geo in
+                            let totalTime = timing.totalTime > 0 ? timing.totalTime : 1
+                            let width = CGFloat(phase.duration / totalTime) * geo.size.width
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(phase.color.opacity(colorScheme == .dark ? 0.85 : 0.75))
+                                .frame(width: max(width, 6))
+                        }
+                        .frame(height: 12)
+                        
+                        // 时间值
+                        Text(formatLatency(phase.duration))
+                            .font(.subheadline)
+                            .foregroundColor(phase.color)
+                            .fontWeight(.medium)
+                            .frame(width: 70, alignment: .trailing)
+                    }
+                    .padding(.vertical, 10)
+                    
+                    // 分割线
+                    Divider()
+                        .padding(.leading, 82)
+                }
+            }
+            
+            // 总计行
+            HStack(spacing: 12) {
+                Text(l10n.totalTime)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
+                    .frame(width: 70, alignment: .leading)
+                
+                Spacer()
+                
+                Text(formatLatency(timing.totalTime))
+                    .font(.subheadline)
+                    .foregroundColor(totalTimeColor)
+                    .fontWeight(.semibold)
+                    .frame(width: 70, alignment: .trailing)
+            }
+            .padding(.vertical, phases.isEmpty ? 0 : 10)
+            
+            // 底部提示信息
+            if showConnectionReused || showTotalTimeNote {
+                VStack(alignment: .leading, spacing: 2) {
+                    if showConnectionReused {
+                        Text(l10n.connectionReused)
+                    }
+                    if showTotalTimeNote {
+                        Text(l10n.totalTimeNoteWithPrefix)
+                    }
+                }
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .padding(.top, 8)
+            }
+        }
+    }
+    
+    private var totalTimeColor: Color {
+        if timing.totalTime < 600 {
+            return .green
+        } else if timing.totalTime < 1000 {
+            return .orange
+        } else {
+            return .red
+        }
+    }
+    
+    private func formatLatency(_ ms: Double) -> String {
+        if ms < 1 {
+            return String(format: "%.2fms", ms)
+        } else if ms < 10 {
+            return String(format: "%.1fms", ms)
+        } else if ms < 1000 {
+            return String(format: "%.0fms", ms)
+        } else {
+            return String(format: "%.2fs", ms / 1000)
+        }
+    }
+}
 
 #Preview {
     NavigationStack {

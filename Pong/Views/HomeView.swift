@@ -158,7 +158,9 @@ struct HomeView: View {
                                 .fontWeight(.bold)
                                 .foregroundStyle(
                                     LinearGradient(
-                                        colors: [.gradientBlue, .gradientPurple],
+                                        colors: colorScheme == .dark 
+                                            ? [Color(red: 0.5, green: 0.7, blue: 1.0), Color(red: 0.8, green: 0.5, blue: 1.0)]
+                                            : [.gradientBlue, .gradientPurple],
                                         startPoint: .leading,
                                         endPoint: .trailing
                                     )
@@ -177,10 +179,26 @@ struct HomeView: View {
                                         .font(.subheadline)
                                         .fontWeight(.medium)
                                 }
-                                .foregroundColor(colorScheme == .dark ? .cyan : .blue)
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: colorScheme == .dark 
+                                            ? [Color(red: 0.5, green: 0.7, blue: 1.0), Color(red: 0.8, green: 0.5, blue: 1.0)]
+                                            : [.gradientBlue, .gradientPurple],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
-                                .background(colorScheme == .dark ? Color.cyan.opacity(0.15) : Color.blue.opacity(0.1))
+                                .background(
+                                    LinearGradient(
+                                        colors: colorScheme == .dark 
+                                            ? [Color(red: 0.5, green: 0.7, blue: 1.0).opacity(0.2), Color(red: 0.8, green: 0.5, blue: 1.0).opacity(0.2)]
+                                            : [Color.gradientBlue.opacity(0.12), Color.gradientPurple.opacity(0.12)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
                                 .cornerRadius(16)
                             }
                         }

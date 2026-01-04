@@ -21,8 +21,18 @@ struct QuickDiagnosisView: View {
     @State private var targetAddress: String = ""
     @FocusState private var isInputFocused: Bool
     @State private var showReportView = false
+    @Environment(\.colorScheme) private var colorScheme
     
     private var l10n: L10n { L10n.shared }
+    
+    // 深色模式适配的渐变色
+    private var adaptiveGradientBlue: Color {
+        colorScheme == .dark ? Color(red: 0.4, green: 0.6, blue: 1.0) : .gradientBlue
+    }
+    
+    private var adaptiveGradientPurple: Color {
+        colorScheme == .dark ? Color(red: 0.7, green: 0.4, blue: 1.0) : .gradientPurple
+    }
     
     var body: some View {
         ScrollViewReader { proxy in
@@ -105,7 +115,7 @@ struct QuickDiagnosisView: View {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: [.gradientBlue.opacity(0.15), .gradientPurple.opacity(0.15)],
+                                colors: [adaptiveGradientBlue.opacity(0.15), adaptiveGradientPurple.opacity(0.15)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -116,7 +126,7 @@ struct QuickDiagnosisView: View {
                         .font(.system(size: 18, weight: .medium))
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [.gradientBlue, .gradientPurple],
+                                colors: [adaptiveGradientBlue, adaptiveGradientPurple],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -164,7 +174,7 @@ struct QuickDiagnosisView: View {
                     .font(.system(size: 24, weight: .bold, design: .rounded))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [.gradientBlue, .gradientPurple],
+                            colors: [adaptiveGradientBlue, adaptiveGradientPurple],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -181,13 +191,13 @@ struct QuickDiagnosisView: View {
                     RoundedRectangle(cornerRadius: 5)
                         .fill(
                             LinearGradient(
-                                colors: [.gradientBlue, .gradientPurple],
+                                colors: [adaptiveGradientBlue, adaptiveGradientPurple],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
                         )
                         .frame(width: max(geometry.size.width * manager.progress, 8), height: 8)
-                        .shadow(color: .gradientBlue.opacity(0.3), radius: 3, x: 0, y: 1)
+                        .shadow(color: adaptiveGradientBlue.opacity(0.3), radius: 3, x: 0, y: 1)
                         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: manager.progress)
                 }
             }
@@ -219,7 +229,7 @@ struct QuickDiagnosisView: View {
                     Capsule()
                         .fill(
                             LinearGradient(
-                                colors: [.gradientBlue, .gradientPurple],
+                                colors: [adaptiveGradientBlue, adaptiveGradientPurple],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -256,7 +266,7 @@ struct QuickDiagnosisView: View {
                         .fontWeight(.bold)
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [.gradientBlue, .gradientPurple],
+                                colors: [adaptiveGradientBlue, adaptiveGradientPurple],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -291,7 +301,7 @@ struct QuickDiagnosisView: View {
                 .cornerRadius(12)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(isInputFocused ? Color.gradientBlue : Color(.systemGray4), lineWidth: isInputFocused ? 2 : 1)
+                        .stroke(isInputFocused ? adaptiveGradientBlue : Color(.systemGray4), lineWidth: isInputFocused ? 2 : 1)
                 )
                 
                 // 开始诊断按钮（仅在 idle 状态显示）
@@ -315,8 +325,8 @@ struct QuickDiagnosisView: View {
                         .background(
                             LinearGradient(
                                 colors: targetAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty 
-                                    ? [Color.gradientBlue.opacity(0.4), Color.gradientPurple.opacity(0.4)] 
-                                    : [Color.gradientBlue, Color.gradientPurple],
+                                    ? [adaptiveGradientBlue.opacity(0.4), adaptiveGradientPurple.opacity(0.4)] 
+                                    : [adaptiveGradientBlue, adaptiveGradientPurple],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -344,7 +354,7 @@ struct QuickDiagnosisView: View {
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(targetAddress == host ? Color.gradientBlue : Color(.systemGray5))
+                                .background(targetAddress == host ? adaptiveGradientBlue : Color(.systemGray5))
                                 .foregroundColor(targetAddress == host ? .white : .primary)
                                 .cornerRadius(16)
                             }
@@ -369,7 +379,7 @@ struct QuickDiagnosisView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Image(systemName: "info.circle.fill")
-                    .foregroundColor(.gradientBlue)
+                    .foregroundColor(adaptiveGradientBlue)
                 Text(l10n.quickDiagnosisFeatureTitle)
                     .font(.subheadline)
                     .fontWeight(.medium)
@@ -403,7 +413,7 @@ struct QuickDiagnosisView: View {
                 .padding()
                 .background(
                     LinearGradient(
-                        colors: [.gradientBlue, .gradientPurple],
+                        colors: [adaptiveGradientBlue, adaptiveGradientPurple],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
@@ -422,13 +432,13 @@ struct QuickDiagnosisView: View {
                     Text(l10n.reDiagnose)
                 }
                 .font(.headline)
-                .foregroundColor(.gradientBlue)
+                .foregroundColor(adaptiveGradientBlue)
                 .frame(maxWidth: .infinity)
                 .padding()
                 .background(Color(.systemBackground))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.gradientBlue, lineWidth: 2)
+                        .stroke(adaptiveGradientBlue, lineWidth: 2)
                 )
                 .cornerRadius(12)
             }
@@ -472,7 +482,7 @@ struct QuickDiagnosisView: View {
                 .padding(.vertical, 12)
                 .background(
                     LinearGradient(
-                        colors: [.gradientBlue, .gradientPurple],
+                        colors: [adaptiveGradientBlue, adaptiveGradientPurple],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
@@ -548,6 +558,7 @@ struct TaskPreviewCard: View {
 // MARK: - 任务状态卡片
 struct TaskStatusCard: View {
     @EnvironmentObject var languageManager: LanguageManager
+    @Environment(\.colorScheme) private var colorScheme
     let result: DiagnosisTaskResult
     
     // Traceroute 倒计时相关
@@ -555,6 +566,15 @@ struct TaskStatusCard: View {
     @State private var countdownTimer: Timer?
     
     private var l10n: L10n { L10n.shared }
+    
+    // 深色模式适配的渐变色
+    private var adaptiveGradientBlue: Color {
+        colorScheme == .dark ? Color(red: 0.4, green: 0.6, blue: 1.0) : .gradientBlue
+    }
+    
+    private var adaptiveGradientPurple: Color {
+        colorScheme == .dark ? Color(red: 0.7, green: 0.4, blue: 1.0) : .gradientPurple
+    }
     
     // 是否为 Traceroute 任务
     private var isTraceTask: Bool {
@@ -675,7 +695,7 @@ struct TaskStatusCard: View {
         case .pending:
             return LinearGradient(colors: [.gray.opacity(0.4), .gray.opacity(0.2)], startPoint: .top, endPoint: .bottom)
         case .running:
-            return LinearGradient(colors: [.gradientBlue, .gradientPurple], startPoint: .top, endPoint: .bottom)
+            return LinearGradient(colors: [adaptiveGradientBlue, adaptiveGradientPurple], startPoint: .top, endPoint: .bottom)
         case .success:
             return LinearGradient(colors: [.green, .green.opacity(0.7)], startPoint: .top, endPoint: .bottom)
         case .failed:
@@ -686,7 +706,7 @@ struct TaskStatusCard: View {
     private var statusBorderColor: Color {
         switch result.status {
         case .pending: return Color(.systemGray3)
-        case .running: return .gradientBlue.opacity(0.7)
+        case .running: return adaptiveGradientBlue.opacity(0.7)
         case .success: return .green.opacity(0.4)
         case .failed: return .red.opacity(0.4)
         }
@@ -729,7 +749,7 @@ struct TaskStatusCard: View {
                     Capsule()
                         .fill(
                             LinearGradient(
-                                colors: [.purple, .gradientPurple],
+                                colors: [.purple, adaptiveGradientPurple],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -751,7 +771,7 @@ struct TaskStatusCard: View {
                     Capsule()
                         .fill(
                             LinearGradient(
-                                colors: [.gradientBlue, .gradientPurple],
+                                colors: [adaptiveGradientBlue, adaptiveGradientPurple],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )

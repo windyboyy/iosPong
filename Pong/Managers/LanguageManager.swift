@@ -660,14 +660,15 @@ struct L10n {
     var labelPlaceholder: String { lang == .chinese ? "输入名称" : "Enter name" }
     var urlPlaceholder: String { lang == .chinese ? "输入 URL 地址" : "Enter URL" }
     var urlHint: String { lang == .chinese ? "如不输入协议，将自动添加 https://" : "https:// will be added if no protocol specified" }
-    var totalTime: String { lang == .chinese ? "总耗时" : "Total Time" }
+    var totalTime: String { lang == .chinese ? "总耗时" : "Total" }
     var dnsLookupTime: String { lang == .chinese ? "DNS 查询" : "DNS Lookup" }
     var tcpConnectionTime: String { lang == .chinese ? "TCP 连接" : "TCP Connection" }
     var tlsHandshakeTime: String { lang == .chinese ? "TLS 握手" : "TLS Handshake" }
     var requestSentTime: String { lang == .chinese ? "请求发送" : "Request Sent" }
     var responseReceivedTime: String { lang == .chinese ? "响应接收" : "Response Received" }
     var connectionReused: String { lang == .chinese ? "连接已复用（跳过 DNS/TCP/TLS）" : "Connection reused (DNS/TCP/TLS skipped)" }
-    var totalTimeNote: String { lang == .chinese ? "总耗时包含响应体下载时间，非纯网络延迟" : "Total time includes response body download, not pure network latency" }
+    var totalTimeNote: String { lang == .chinese ? "总耗时包含响应体下载时间，非纯网络延迟" : "Total includes response body download, not pure network latency" }
+    var totalTimeNoteWithPrefix: String { lang == .chinese ? "注：总耗时包含响应体下载时间，非纯网络延迟" : "Note: Total includes response body download, not pure network latency" }
     
     // 应用延迟测试说明
     var appLatencyNote: String { lang == .chinese ? "下方使用 HTTP HEAD 请求，仅测量连接延迟，不包含响应内容传输时间" : "Using HTTP HEAD request below, measures connection latency only, excludes response body transfer time" }
