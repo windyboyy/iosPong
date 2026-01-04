@@ -26,7 +26,7 @@ enum ToolCategory: CaseIterable {
         case .networkLayer:
             return [.ping, .trace, .dns, .tcp, .udp]
         case .applicationLayer:
-            return [.httpGet, .latencyTest, .connectionTest]
+            return [.httpGet, .connectionTest, .latencyTest]
         case .systemTools:
             return [.deviceInfo, .packetCapture]
         }
@@ -106,7 +106,7 @@ enum NetworkTool: CaseIterable, Identifiable {
         case .httpGet: return .teal
         case .packetCapture: return .pink
         case .deviceInfo: return .indigo
-        case .latencyTest: return .orange
+        case .latencyTest: return .green
         }
     }
     
