@@ -150,11 +150,20 @@ struct HomeView: View {
                     // 顶部标题栏
                     if appSettings.homeStyle == .modern {
                         // 新版样式：Logo + 语言切换
-                        HStack {
-                            Image(colorScheme == .dark ? "itango_night_logo" : "itango_logo")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(height: 70)
+                        HStack(spacing: 8) {
+                            AppLogoSimple(size: 28)
+                            
+                            Text(l10n.appName)
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.gradientBlue, .gradientPurple],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                            
                             Spacer()
                             
                             // 语言切换按钮
@@ -176,7 +185,7 @@ struct HomeView: View {
                             }
                         }
                         .padding(.horizontal, 4)
-                        .padding(.bottom, -20)
+                        .padding(.bottom, -5)
                     } else {
                         // 旧版样式：用户专区标题 + 语言切换
                         HStack {

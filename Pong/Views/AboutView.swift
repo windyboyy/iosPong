@@ -44,7 +44,7 @@ struct AboutView: View {
                     AppLogoView(size: 80, showText: false)
                     
                     // App 名称
-                    Text("Pong")
+                    Text(l10n.appName)
                         .font(.title2)
                         .fontWeight(.bold)
                     

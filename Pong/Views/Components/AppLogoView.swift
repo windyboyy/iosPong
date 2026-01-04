@@ -96,7 +96,7 @@ struct AppLogoView: View {
             
             // 应用名称
             if showText {
-                Text("Pong")
+                Text(L10n.shared.appName)
                     .font(.system(size: size * 0.3, weight: .bold, design: .rounded))
                     .foregroundStyle(
                         LinearGradient(

@@ -156,6 +156,9 @@ struct L10n {
     var tabIPQuery: String { lang == .chinese ? "IP" : "IP" }
     var tabProfile: String { lang == .chinese ? "我的" : "Profile" }
     
+    // MARK: - App 名称
+    var appName: String { lang == .chinese ? "网络魔法箱" : "NetMagic" }
+    
     // MARK: - 首页
     var quickDiagnosis: String { lang == .chinese ? "一键诊断" : "Quick Diagnosis" }
     var quickDiagnosisDesc: String { lang == .chinese ? "输入目标地址，快速定位网络问题" : "Enter target address to locate network issues" }
