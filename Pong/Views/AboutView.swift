@@ -82,7 +82,7 @@ struct AboutView: View {
                 HStack {
                     Text(l10n.developer)
                     Spacer()
-                    Text("iTango Team")
+                    Text("NetMagic Team")
                         .foregroundColor(.secondary)
                 }
                 
@@ -94,18 +94,6 @@ struct AboutView: View {
                 }
             }
             
-            // 相关链接
-            Section(l10n.relatedLinks) {
-                Link(destination: URL(string: "https://itango.tencent.com")!) {
-                    HStack {
-                        Label(l10n.officialWebsite, systemImage: "globe")
-                        Spacer()
-                        Image(systemName: "arrow.up.right.square")
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .foregroundColor(.primary)
-            }
         }
         .navigationTitle(l10n.about)
         .navigationBarTitleDisplayMode(.inline)

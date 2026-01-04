@@ -388,7 +388,7 @@ struct L10n {
     // MARK: - 意见反馈
     var feedbackEmailTitle: String { lang == .chinese ? "通过邮件联系我们" : "Contact Us via Email" }
     var feedbackEmailDesc: String { lang == .chinese ? "如有问题或建议，请发送邮件给我们" : "For questions or suggestions, please send us an email" }
-    var feedbackEmailSubject: String { lang == .chinese ? "iTango 意见反馈" : "iTango Feedback" }
+    var feedbackEmailSubject: String { lang == .chinese ? "网络魔法箱意见反馈" : "NetMagic Feedback" }
     var sendEmail: String { lang == .chinese ? "发送邮件" : "Send Email" }
     var copyEmail: String { lang == .chinese ? "复制邮箱地址" : "Copy Email Address" }
     var mailNotAvailable: String { lang == .chinese ? "无法发送邮件" : "Cannot Send Email" }

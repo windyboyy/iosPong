@@ -54,11 +54,11 @@ struct AgreementContent {
 更新日期：2025年12月15日
 生效日期：2025年12月15日
 
-欢迎使用 iTango 网络探测服务！
+欢迎使用网络魔法箱服务！
 
 一、服务说明
 
-iTango 网络探测（以下简称"本服务"）是由腾讯公司提供的网络质量监测工具，包括但不限于：
+网络魔法箱（以下简称"本服务"）是由腾讯公司提供的网络质量监测工具，包括但不限于：
 • 本地网络诊断工具（Ping、路由追踪、DNS查询等）
 • 一键诊断服务
 
@@ -245,11 +245,11 @@ Terms of Service
 Last Updated: December 15, 2025
 Effective Date: December 15, 2025
 
-Welcome to iTango Network Probe!
+Welcome to NetMagic!
 
 1. Service Description
 
-iTango Network Probe (hereinafter referred to as "the Service") is a network quality monitoring tool provided by Tencent, including but not limited to:
+NetMagic (hereinafter referred to as "the Service") is a network quality monitoring tool provided by Tencent, including but not limited to:
 • Local network diagnostic tools (Ping, Traceroute, DNS Query, etc.)
 • One-click diagnosis service
 
