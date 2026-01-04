@@ -14,6 +14,7 @@ internal import Combine
 struct ConnectionTestResult: Identifiable {
     let id: UUID
     let domain: String
+    let port: Int
     let timestamp: Date
     
     // DNS 解析结果
@@ -28,9 +29,10 @@ struct ConnectionTestResult: Identifiable {
     var ipv4Error: String?
     var ipv6Error: String?
     
-    init(domain: String, timestamp: Date) {
+    init(domain: String, port: Int = 443, timestamp: Date) {
         self.id = UUID()
         self.domain = domain
+        self.port = port
         self.timestamp = timestamp
         self.ipv4Addresses = []
         self.ipv6Addresses = []
@@ -115,7 +117,7 @@ class ConnectionTestManager: ObservableObject {
         currentPhase = .resolvingDNS
         
         // 立即创建并显示结果卡片（loading 状态）
-        let result = ConnectionTestResult(domain: domain, timestamp: Date())
+        let result = ConnectionTestResult(domain: domain, port: port, timestamp: Date())
         currentResult = result
         results.insert(result, at: 0)
         if results.count > 20 {

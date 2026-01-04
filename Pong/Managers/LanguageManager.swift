@@ -245,6 +245,8 @@ struct L10n {
     var connectionTestFeature2: String { lang == .chinese ? "分别测试 IPv4 和 IPv6 的连接延迟，找出最优协议" : "Test IPv4 & IPv6 latency, find the optimal protocol" }
     var connectionTestFeature3: String { lang == .chinese ? "诊断网络连通性问题，判断是 DNS 故障还是连接故障" : "Diagnose connectivity issues: DNS or connection failure" }
     var systemDNS: String { lang == .chinese ? "系统DNS" : "System DNS" }
+    var connectionLatency: String { lang == .chinese ? "连接延迟" : "Connection Latency" }
+    var portLabel: String { lang == .chinese ? "端口 " : "Port " }
     
     // MARK: - IP 查询
     var ipQuery: String { lang == .chinese ? "IP查询" : "IP Query" }

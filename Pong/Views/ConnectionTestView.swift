@@ -436,6 +436,16 @@ struct ConnectionTestResultCard: View {
         return f
     }()
     
+    // 格式化延迟时间，支持 ms 和 s 单位转换
+    private func formatLatency(_ latency: TimeInterval) -> String {
+        let ms = latency * 1000
+        if ms >= 1000 {
+            return String(format: "%.2fs", latency)
+        } else {
+            return String(format: "%.0fms", ms)
+        }
+    }
+    
     // DNS 是否正在解析
     private var isDNSLoading: Bool {
         result.dnsLatency == 0 && result.ipv4Addresses.isEmpty && result.ipv6Addresses.isEmpty
@@ -503,7 +513,7 @@ struct ConnectionTestResultCard: View {
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
-                                .background(Capsule().fill(statusColor))
+                                .background(RoundedRectangle(cornerRadius: 5).fill(statusColor))
                             } else {
                                 Text(result.conclusion)
                                     .font(.caption2)
@@ -511,18 +521,22 @@ struct ConnectionTestResultCard: View {
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 3)
-                                    .background(Capsule().fill(statusColor))
+                                    .background(RoundedRectangle(cornerRadius: 5).fill(statusColor))
                             }
                             
-                            // DNS 延迟（仅在解析完成后显示）
+                            // DNS 解析时间（仅在解析完成后显示）
                             if !isDNSLoading {
-                                HStack(spacing: 3) {
-                                    Image(systemName: "server.rack")
+                                HStack(spacing: 4) {
+                                    Text("DNS")
                                         .font(.caption2)
-                                    Text(String(format: "%.0fms", result.dnsLatency * 1000))
+                                        .fontWeight(.semibold)
+                                    Text(formatLatency(result.dnsLatency))
                                         .font(.caption2)
                                 }
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(RoundedRectangle(cornerRadius: 5).fill(Color.cyan.opacity(0.8)))
                             }
                         }
                     }
@@ -616,31 +630,53 @@ struct ConnectionTestResultCard: View {
                     Divider().padding(.leading, 16)
                     
                     // 连接测试结果
-                    HStack(spacing: 0) {
-                        // IPv4 结果
-                        ConnectionResultCell(
-                            title: "IPv4",
-                            latency: result.ipv4Latency,
-                            error: result.ipv4Error,
-                            hasRecord: !result.ipv4Addresses.isEmpty,
-                            isPreferred: result.preferredProtocol == .ipv4
-                        )
+                    VStack(spacing: 0) {
+                        HStack {
+                            Label("TCP " + l10n.connectionLatency, systemImage: "bolt.horizontal")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.cyan)
+                            
+                            Text(l10n.portLabel + "\(result.port)")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color(.systemGray5))
+                                .cornerRadius(4)
+                            
+                            Spacer()
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.top, 10)
+                        .padding(.bottom, 6)
                         
-                        Rectangle()
-                            .fill(Color(.systemGray4))
-                            .frame(width: 1)
-                            .padding(.vertical, 8)
-                        
-                        // IPv6 结果
-                        ConnectionResultCell(
-                            title: "IPv6",
-                            latency: result.ipv6Latency,
-                            error: result.ipv6Error,
-                            hasRecord: !result.ipv6Addresses.isEmpty,
-                            isPreferred: result.preferredProtocol == .ipv6
-                        )
+                        HStack(spacing: 0) {
+                            // IPv4 结果
+                            ConnectionResultCell(
+                                title: "IPv4",
+                                latency: result.ipv4Latency,
+                                error: result.ipv4Error,
+                                hasRecord: !result.ipv4Addresses.isEmpty,
+                                isPreferred: result.preferredProtocol == .ipv4
+                            )
+                            
+                            Rectangle()
+                                .fill(Color(.systemGray4))
+                                .frame(width: 1)
+                                .padding(.vertical, 8)
+                            
+                            // IPv6 结果
+                            ConnectionResultCell(
+                                title: "IPv6",
+                                latency: result.ipv6Latency,
+                                error: result.ipv6Error,
+                                hasRecord: !result.ipv6Addresses.isEmpty,
+                                isPreferred: result.preferredProtocol == .ipv6
+                            )
+                        }
+                        .frame(height: 60)
                     }
-                    .frame(height: 70)
                 }
                 .transition(.asymmetric(
                     insertion: .opacity.combined(with: .move(edge: .top)),
