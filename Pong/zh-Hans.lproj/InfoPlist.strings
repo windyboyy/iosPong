@@ -1,0 +1,3 @@
+/* 简体中文 - App 名称本地化 */
+CFBundleDisplayName = "网络魔法箱";
+CFBundleName = "网络魔法箱";

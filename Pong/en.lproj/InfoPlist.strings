@@ -1,0 +1,3 @@
+/* English - App Name Localization */
+CFBundleDisplayName = "NetMagic";
+CFBundleName = "NetMagic";
