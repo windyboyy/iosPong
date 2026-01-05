@@ -604,7 +604,7 @@ class QuickDiagnosisManager: ObservableObject {
         // 使用 PingManager 执行 ping
         pingManager.packetSize = size
         pingManager.interval = 0.2  // 快速诊断使用 0.2s 间隔
-        pingManager.preferIPv6 = task.useIPv6  // 设置 IPv6 偏好
+        pingManager.protocolPreference = task.useIPv6 ? .ipv6Only : .auto  // 设置 IP 协议偏好
         pingManager.startPing(host: task.target, count: count)
         
         // 等待 ping 完成

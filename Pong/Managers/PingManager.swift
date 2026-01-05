@@ -22,7 +22,7 @@ class PingManager: ObservableObject {
     @Published var packetSize: Int = 56  // 发包大小（字节）
     @Published var interval: Double = 0.2  // 发包间隔（秒）
     @Published var ipVersion: IPVersion = .ipv4  // 当前使用的 IP 版本
-    @Published var preferIPv6: Bool = false  // 是否优先使用 IPv6
+    @Published var protocolPreference: IPProtocolPreference = .auto  // 用户选择的协议偏好
     
     private var pingTask: Task<Void, Never>?
     private var sequence: UInt16 = 0
@@ -600,49 +600,31 @@ class PingManager: ObservableObject {
         // 检查是否已经是 IPv6 地址
         var addr6 = in6_addr()
         if inet_pton(AF_INET6, host, &addr6) == 1 {
+            // 如果用户指定仅 IPv4，但输入的是 IPv6 地址，返回失败
+            if protocolPreference == .ipv4Only {
+                return (nil, .ipv4)
+            }
             return (host, .ipv6)
         }
         
         // 检查是否已经是 IPv4 地址
         var addr4 = in_addr()
         if inet_pton(AF_INET, host, &addr4) == 1 {
+            // 如果用户指定仅 IPv6，但输入的是 IPv4 地址，返回失败
+            if protocolPreference == .ipv6Only {
+                return (nil, .ipv6)
+            }
             return (host, .ipv4)
         }
         
-        // DNS 解析 - 根据 preferIPv6 决定优先级
+        // DNS 解析 - 根据 protocolPreference 决定解析策略
         var hints = addrinfo()
         hints.ai_socktype = SOCK_DGRAM
         var result: UnsafeMutablePointer<addrinfo>?
         
-        if preferIPv6 {
-            // 优先尝试 IPv6
-            hints.ai_family = AF_INET6
-            if getaddrinfo(host, nil, &hints, &result) == 0, let info = result {
-                defer { freeaddrinfo(result) }
-                if let sockaddr = info.pointee.ai_addr {
-                    let sockaddrIn6 = sockaddr.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) { $0.pointee }
-                    var ipBuffer = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
-                    var addr = sockaddrIn6.sin6_addr
-                    inet_ntop(AF_INET6, &addr, &ipBuffer, socklen_t(INET6_ADDRSTRLEN))
-                    return (String(cString: ipBuffer), .ipv6)
-                }
-            }
-            
-            // IPv6 失败，回退到 IPv4
-            hints.ai_family = AF_INET
-            result = nil
-            if getaddrinfo(host, nil, &hints, &result) == 0, let info = result {
-                defer { freeaddrinfo(result) }
-                if let sockaddr = info.pointee.ai_addr {
-                    let sockaddrIn = sockaddr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { $0.pointee }
-                    var ipBuffer = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
-                    var addr = sockaddrIn.sin_addr
-                    inet_ntop(AF_INET, &addr, &ipBuffer, socklen_t(INET_ADDRSTRLEN))
-                    return (String(cString: ipBuffer), .ipv4)
-                }
-            }
-        } else {
-            // 优先尝试 IPv4（默认行为）
+        switch protocolPreference {
+        case .ipv4Only:
+            // 仅 IPv4
             hints.ai_family = AF_INET
             if getaddrinfo(host, nil, &hints, &result) == 0, let info = result {
                 defer { freeaddrinfo(result) }
@@ -654,10 +636,11 @@ class PingManager: ObservableObject {
                     return (String(cString: ipBuffer), .ipv4)
                 }
             }
+            return (nil, .ipv4)
             
-            // IPv4 失败，尝试 IPv6
+        case .ipv6Only:
+            // 仅 IPv6
             hints.ai_family = AF_INET6
-            result = nil
             if getaddrinfo(host, nil, &hints, &result) == 0, let info = result {
                 defer { freeaddrinfo(result) }
                 if let sockaddr = info.pointee.ai_addr {
@@ -666,6 +649,30 @@ class PingManager: ObservableObject {
                     var addr = sockaddrIn6.sin6_addr
                     inet_ntop(AF_INET6, &addr, &ipBuffer, socklen_t(INET6_ADDRSTRLEN))
                     return (String(cString: ipBuffer), .ipv6)
+                }
+            }
+            return (nil, .ipv6)
+            
+        case .auto:
+            // 默认行为：让系统自动选择（不指定 ai_family）
+            hints.ai_family = AF_UNSPEC
+            if getaddrinfo(host, nil, &hints, &result) == 0, let info = result {
+                defer { freeaddrinfo(result) }
+                if let sockaddr = info.pointee.ai_addr {
+                    let family = Int32(sockaddr.pointee.sa_family)
+                    if family == AF_INET {
+                        let sockaddrIn = sockaddr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { $0.pointee }
+                        var ipBuffer = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
+                        var addr = sockaddrIn.sin_addr
+                        inet_ntop(AF_INET, &addr, &ipBuffer, socklen_t(INET_ADDRSTRLEN))
+                        return (String(cString: ipBuffer), .ipv4)
+                    } else if family == AF_INET6 {
+                        let sockaddrIn6 = sockaddr.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) { $0.pointee }
+                        var ipBuffer = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
+                        var addr = sockaddrIn6.sin6_addr
+                        inet_ntop(AF_INET6, &addr, &ipBuffer, socklen_t(INET6_ADDRSTRLEN))
+                        return (String(cString: ipBuffer), .ipv6)
+                    }
                 }
             }
         }

@@ -112,42 +112,59 @@ struct PingView: View {
             .padding(.horizontal)
             
             // 设置选项
-            HStack(spacing: 16) {
-                // 发包大小
-                HStack(spacing: 4) {
-                    Text(l10n.packetSize)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Picker("", selection: $packetSize) {
-                        Text("56").tag(56)
-                        Text("128").tag(128)
-                        Text("512").tag(512)
-                        Text("1024").tag(1024)
+            VStack(spacing: 8) {
+                HStack(spacing: 16) {
+                    // 发包大小
+                    HStack(spacing: 4) {
+                        Text(l10n.packetSize)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Picker("", selection: $packetSize) {
+                            Text("56").tag(56)
+                            Text("128").tag(128)
+                            Text("512").tag(512)
+                            Text("1024").tag(1024)
+                        }
+                        .pickerStyle(.menu)
+                        .onChange(of: packetSize) { _, newValue in
+                            pingManager.packetSize = newValue
+                        }
                     }
-                    .pickerStyle(.menu)
-                    .onChange(of: packetSize) { _, newValue in
-                        pingManager.packetSize = newValue
+                    
+                    // 发包间隔
+                    HStack(spacing: 4) {
+                        Text(l10n.interval)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Picker("", selection: $interval) {
+                            Text("0.2s").tag(0.2)
+                            Text("0.5s").tag(0.5)
+                            Text("1s").tag(1.0)
+                            Text("2s").tag(2.0)
+                        }
+                        .pickerStyle(.menu)
+                        .onChange(of: interval) { _, newValue in
+                            pingManager.interval = newValue
+                        }
                     }
+                    
+                    Spacer()
                 }
                 
-                // 发包间隔
-                HStack(spacing: 4) {
-                    Text(l10n.interval)
+                // IP 协议选择
+                HStack {
+                    Text(l10n.ipProtocol)
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Picker("", selection: $interval) {
-                        Text("0.2s").tag(0.2)
-                        Text("0.5s").tag(0.5)
-                        Text("1s").tag(1.0)
-                        Text("2s").tag(2.0)
+                    Picker("", selection: $pingManager.protocolPreference) {
+                        ForEach(IPProtocolPreference.allCases, id: \.self) { preference in
+                            Text(preference.displayName).tag(preference)
+                        }
                     }
-                    .pickerStyle(.menu)
-                    .onChange(of: interval) { _, newValue in
-                        pingManager.interval = newValue
-                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 200)
+                    Spacer()
                 }
-                
-                Spacer()
             }
             .padding(.horizontal)
             
