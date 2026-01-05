@@ -152,10 +152,13 @@ struct InfoRow: View {
         HStack {
             Text(title)
                 .foregroundColor(.secondary)
-            Spacer()
+                .layoutPriority(1)
+            Spacer(minLength: 16)
             Text(value)
                 .foregroundColor(.primary)
                 .multilineTextAlignment(.trailing)
+                .frame(maxWidth: 200, alignment: .trailing)
+                .lineLimit(2)
         }
         .contextMenu {
             Button {
