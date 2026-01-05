@@ -82,7 +82,7 @@ struct AboutView: View {
                 HStack {
                     Text(l10n.developer)
                     Spacer()
-                    Text("NetMagic Team")
+                    Text("ZJC")
                         .foregroundColor(.secondary)
                 }
                 
