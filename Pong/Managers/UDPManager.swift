@@ -17,7 +17,7 @@ class UDPManager: ObservableObject {
     @Published var isTesting = false
     @Published var results: [UDPResult] = []
     @Published var currentHost = ""
-    @Published var preferIPv6: Bool = false  // 是否优先使用 IPv6
+    @Published var protocolPreference: IPProtocolPreference = .auto  // 用户选择的协议偏好
     private var actualUseIPv6: Bool = false  // 实际使用的 IP 版本（根据解析结果）
     
     private var testTask: Task<Void, Never>?
@@ -132,8 +132,22 @@ class UDPManager: ObservableObject {
     private func sendUDPPacket(host: String, port: UInt16, message: String) async -> UDPResult {
         let startTime = Date()
         
-        // 先解析主机名，根据 preferIPv6 决定使用的 IP 版本
+        // 先解析主机名，根据 protocolPreference 决定使用的 IP 版本
         let resolved = resolveHost(host)
+        
+        // 检查解析错误
+        if let error = resolved.error {
+            return UDPResult(
+                host: host,
+                port: port,
+                sent: false,
+                received: false,
+                latency: nil,
+                error: error,
+                timestamp: Date()
+            )
+        }
+        
         let targetHost = resolved.ip ?? host
         let isIPv6 = resolved.isIPv6
         
@@ -270,16 +284,24 @@ class UDPManager: ObservableObject {
     
     // MARK: - DNS 解析
     
-    /// 解析主机名，根据 preferIPv6 决定优先级，返回 (IP, 是否为IPv6)
-    private func resolveHost(_ host: String) -> (ip: String?, isIPv6: Bool) {
+    /// 解析主机名，根据 protocolPreference 决定优先级，返回 (IP, 是否为IPv6, 错误信息)
+    private func resolveHost(_ host: String) -> (ip: String?, isIPv6: Bool, error: String?) {
         // 检查是否已经是 IP 地址
         var addr6 = in6_addr()
         if inet_pton(AF_INET6, host, &addr6) == 1 {
-            return (host, true)
+            // 用户输入的是 IPv6 地址
+            if protocolPreference == .ipv4Only {
+                return (nil, true, L10n.shared.ipv6AddressNotAllowed)
+            }
+            return (host, true, nil)
         }
         var addr4 = in_addr()
         if inet_pton(AF_INET, host, &addr4) == 1 {
-            return (host, false)
+            // 用户输入的是 IPv4 地址
+            if protocolPreference == .ipv6Only {
+                return (nil, false, L10n.shared.ipv4AddressNotAllowed)
+            }
+            return (host, false, nil)
         }
         
         // DNS 解析
@@ -287,8 +309,9 @@ class UDPManager: ObservableObject {
         hints.ai_socktype = SOCK_DGRAM
         var result: UnsafeMutablePointer<addrinfo>?
         
-        if preferIPv6 {
-            // 优先 IPv6
+        switch protocolPreference {
+        case .ipv6Only:
+            // 仅 IPv6
             hints.ai_family = AF_INET6
             if getaddrinfo(host, nil, &hints, &result) == 0, let info = result {
                 defer { freeaddrinfo(result) }
@@ -297,13 +320,17 @@ class UDPManager: ObservableObject {
                     var ipBuffer = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
                     var addr = sockaddrIn6.sin6_addr
                     inet_ntop(AF_INET6, &addr, &ipBuffer, socklen_t(INET6_ADDRSTRLEN))
-                    return (String(cString: ipBuffer), true)
+                    return (String(cString: ipBuffer), true, nil)
                 }
             }
-            // 回退到 IPv4
+            return (nil, true, L10n.shared.noAAAARecord)  // IPv6 解析失败
+            
+        case .ipv4Only:
+            // 仅 IPv4
             hints.ai_family = AF_INET
-            result = nil
-        } else {
+            
+        case .auto:
+            // 系统默认（优先 IPv4）
             hints.ai_family = AF_INET
         }
         
@@ -314,11 +341,11 @@ class UDPManager: ObservableObject {
                 var ipBuffer = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
                 var addr = sockaddrIn.sin_addr
                 inet_ntop(AF_INET, &addr, &ipBuffer, socklen_t(INET_ADDRSTRLEN))
-                return (String(cString: ipBuffer), false)
+                return (String(cString: ipBuffer), false, nil)
             }
         }
         
-        return (nil, false)
+        return (nil, false, L10n.shared.dnsResolveFailed)
     }
     
     // 常用 UDP 端口

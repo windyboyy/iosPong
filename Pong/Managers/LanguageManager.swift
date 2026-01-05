@@ -484,6 +484,10 @@ struct L10n {
     var noLocalIPv6ForTCP: String { lang == .chinese ? "当前网络无 IPv6 地址，无法进行 IPv6 TCP 测试" : "No IPv6 address on current network, cannot perform IPv6 TCP test" }
     var noLocalIPv6ForUDP: String { lang == .chinese ? "当前网络无 IPv6 地址，无法进行 IPv6 UDP 测试" : "No IPv6 address on current network, cannot perform IPv6 UDP test" }
     var ipv6NetworkUnreachable: String { lang == .chinese ? "IPv6 网络不可达，请检查网络是否支持 IPv6" : "IPv6 network unreachable, please check if your network supports IPv6" }
+    var ipv4AddressNotAllowed: String { lang == .chinese ? "已选择 IPv6 模式，但输入的是 IPv4 地址" : "IPv6 mode selected, but an IPv4 address was entered" }
+    var ipv6AddressNotAllowed: String { lang == .chinese ? "已选择 IPv4 模式，但输入的是 IPv6 地址" : "IPv4 mode selected, but an IPv6 address was entered" }
+    var noAAAARecord: String { lang == .chinese ? "该域名无 AAAA 记录（IPv6）" : "No AAAA record (IPv6) for this domain" }
+    var dnsResolveFailed: String { lang == .chinese ? "DNS 解析失败" : "DNS resolution failed" }
     
     // MARK: - 网络状态
     var networkUnknown: String { lang == .chinese ? "未知" : "Unknown" }

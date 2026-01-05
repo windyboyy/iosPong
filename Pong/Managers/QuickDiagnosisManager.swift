@@ -658,7 +658,7 @@ class QuickDiagnosisManager: ObservableObject {
         let count = task.options?.count ?? 1
         
         // 设置 IPv6 偏好
-        tcpManager.preferIPv6 = task.useIPv6
+        tcpManager.protocolPreference = task.useIPv6 ? .ipv6Only : .auto
         
         var allResults: [TCPResult] = []
         
@@ -745,7 +745,7 @@ class QuickDiagnosisManager: ObservableObject {
         let count = task.options?.count ?? 1
         
         // 设置 IPv6 偏好
-        udpManager.preferIPv6 = task.useIPv6
+        udpManager.protocolPreference = task.useIPv6 ? .ipv6Only : .auto
         
         var allResults: [UDPResult] = []
         

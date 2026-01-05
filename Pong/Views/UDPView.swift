@@ -106,6 +106,21 @@ struct UDPView: View {
                 if showHistory && !historyManager.udpHistory.isEmpty {
                     udpHistoryListView
                 }
+                
+                // IP 协议选择
+                HStack {
+                    Text(l10n.ipProtocol)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Picker("", selection: $udpManager.protocolPreference) {
+                        ForEach(IPProtocolPreference.allCases, id: \.self) { preference in
+                            Text(preference.displayName).tag(preference)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 200)
+                    Spacer()
+                }
             }
             .padding(.horizontal)
             

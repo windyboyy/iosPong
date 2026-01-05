@@ -89,6 +89,21 @@ struct TCPView: View {
                     tcpHistoryListView
                 }
                 
+                // IP 协议选择
+                HStack {
+                    Text(l10n.ipProtocol)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Picker("", selection: $tcpManager.protocolPreference) {
+                        ForEach(IPProtocolPreference.allCases, id: \.self) { preference in
+                            Text(preference.displayName).tag(preference)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 200)
+                    Spacer()
+                }
+                
                 HStack {
                     Toggle(l10n.scanCommonPorts, isOn: $scanMode)
                         .font(.subheadline)
