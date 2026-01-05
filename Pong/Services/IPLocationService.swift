@@ -255,11 +255,26 @@ class IPLocationService {
     
     /// 验证是否为有效的 IPv4 地址
     func isValidIPv4(_ ip: String) -> Bool {
-        let parts = ip.split(separator: ".")
+        // 使用 split 时保留空字符串以检测连续的点（如 "1..2.3"）
+        let parts = ip.split(separator: ".", omittingEmptySubsequences: false)
         guard parts.count == 4 else { return false }
         
         for part in parts {
-            guard let num = Int(part), num >= 0, num <= 255 else {
+            let partStr = String(part)
+            
+            // 检查是否为空
+            guard !partStr.isEmpty else { return false }
+            
+            // 检查是否只包含数字
+            guard partStr.allSatisfy({ $0.isNumber }) else { return false }
+            
+            // 检查前导零（"0" 本身是允许的，但 "01"、"001" 等不允许）
+            if partStr.count > 1 && partStr.hasPrefix("0") {
+                return false
+            }
+            
+            // 检查数值范围
+            guard let num = Int(partStr), num >= 0, num <= 255 else {
                 return false
             }
         }

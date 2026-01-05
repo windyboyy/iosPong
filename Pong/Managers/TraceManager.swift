@@ -796,31 +796,25 @@ class TraceManager: ObservableObject {
             return (nil, .ipv6)
             
         case .auto:
-            // 系统默认：优先尝试 IPv4
-            hints.ai_family = AF_INET
+            // 默认行为：让系统自动选择（不指定 ai_family）
+            hints.ai_family = AF_UNSPEC
             if getaddrinfo(host, nil, &hints, &result) == 0, let info = result {
                 defer { freeaddrinfo(result) }
                 if let sockaddr = info.pointee.ai_addr {
-                    let sockaddrIn = sockaddr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { $0.pointee }
-                    var ipBuffer = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
-                    var addr = sockaddrIn.sin_addr
-                    inet_ntop(AF_INET, &addr, &ipBuffer, socklen_t(INET_ADDRSTRLEN))
-                    return (String(cString: ipBuffer), .ipv4)
-                }
-            }
-            
-            // 如果没有 IPv4，尝试 IPv6
-            hints.ai_family = AF_INET6
-            result = nil
-            
-            if getaddrinfo(host, nil, &hints, &result) == 0, let info = result {
-                defer { freeaddrinfo(result) }
-                if let sockaddr = info.pointee.ai_addr {
-                    let sockaddrIn6 = sockaddr.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) { $0.pointee }
-                    var ipBuffer = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
-                    var addr = sockaddrIn6.sin6_addr
-                    inet_ntop(AF_INET6, &addr, &ipBuffer, socklen_t(INET6_ADDRSTRLEN))
-                    return (String(cString: ipBuffer), .ipv6)
+                    let family = Int32(sockaddr.pointee.sa_family)
+                    if family == AF_INET {
+                        let sockaddrIn = sockaddr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { $0.pointee }
+                        var ipBuffer = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
+                        var addr = sockaddrIn.sin_addr
+                        inet_ntop(AF_INET, &addr, &ipBuffer, socklen_t(INET_ADDRSTRLEN))
+                        return (String(cString: ipBuffer), .ipv4)
+                    } else if family == AF_INET6 {
+                        let sockaddrIn6 = sockaddr.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) { $0.pointee }
+                        var ipBuffer = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
+                        var addr = sockaddrIn6.sin6_addr
+                        inet_ntop(AF_INET6, &addr, &ipBuffer, socklen_t(INET6_ADDRSTRLEN))
+                        return (String(cString: ipBuffer), .ipv6)
+                    }
                 }
             }
             
