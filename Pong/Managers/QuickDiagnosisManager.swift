@@ -88,6 +88,15 @@ struct DiagnosisTaskDetail: Identifiable, Codable {
         return af == 6
     }
     
+    /// 协议偏好：nil 或非 4/6 = auto, 4 = IPv4, 6 = IPv6
+    var protocolPreference: IPProtocolPreference {
+        switch af {
+        case 4: return .ipv4Only
+        case 6: return .ipv6Only
+        default: return .auto
+        }
+    }
+    
     /// 简短的参数描述（用于任务列表显示）
     var paramDescription: String {
         let l10n = L10n.shared
@@ -281,7 +290,7 @@ class QuickDiagnosisManager: ObservableObject {
                 target: target,
                 port: nil,
                 options: DiagnosisTaskOptions(count: nil, size: nil, timeout: nil, rtype: "A", ns: nil),
-                af: 4
+                af: nil
             ))
             taskId += 1
             
@@ -292,7 +301,7 @@ class QuickDiagnosisManager: ObservableObject {
                 target: target,
                 port: nil,
                 options: DiagnosisTaskOptions(count: nil, size: nil, timeout: nil, rtype: "AAAA", ns: nil),
-                af: 4
+                af: nil
             ))
             taskId += 1
         }
@@ -304,7 +313,7 @@ class QuickDiagnosisManager: ObservableObject {
             target: target,
             port: nil,
             options: DiagnosisTaskOptions(count: 5, size: 56, timeout: nil, rtype: nil, ns: nil),
-            af: 4
+            af: nil
         ))
         taskId += 1
         
@@ -315,7 +324,7 @@ class QuickDiagnosisManager: ObservableObject {
             target: target,
             port: "80",
             options: DiagnosisTaskOptions(count: 1, size: nil, timeout: nil, rtype: nil, ns: nil),
-            af: 4
+            af: nil
         ))
         taskId += 1
         
@@ -326,7 +335,7 @@ class QuickDiagnosisManager: ObservableObject {
             target: target,
             port: "443",
             options: DiagnosisTaskOptions(count: 1, size: nil, timeout: nil, rtype: nil, ns: nil),
-            af: 4
+            af: nil
         ))
         taskId += 1
         
@@ -337,7 +346,7 @@ class QuickDiagnosisManager: ObservableObject {
             target: target,
             port: nil,
             options: DiagnosisTaskOptions(count: 3, size: nil, timeout: nil, rtype: nil, ns: nil),
-            af: 4
+            af: nil
         ))
         
         return tasks
@@ -604,7 +613,7 @@ class QuickDiagnosisManager: ObservableObject {
         // 使用 PingManager 执行 ping
         pingManager.packetSize = size
         pingManager.interval = 0.2  // 快速诊断使用 0.2s 间隔
-        pingManager.protocolPreference = task.useIPv6 ? .ipv6Only : .auto  // 设置 IP 协议偏好
+        pingManager.protocolPreference = task.protocolPreference  // 设置 IP 协议偏好
         pingManager.startPing(host: task.target, count: count)
         
         // 等待 ping 完成
@@ -658,7 +667,7 @@ class QuickDiagnosisManager: ObservableObject {
         let count = task.options?.count ?? 1
         
         // 设置 IPv6 偏好
-        tcpManager.protocolPreference = task.useIPv6 ? .ipv6Only : .auto
+        tcpManager.protocolPreference = task.protocolPreference
         
         var allResults: [TCPResult] = []
         
@@ -745,7 +754,7 @@ class QuickDiagnosisManager: ObservableObject {
         let count = task.options?.count ?? 1
         
         // 设置 IPv6 偏好
-        udpManager.protocolPreference = task.useIPv6 ? .ipv6Only : .auto
+        udpManager.protocolPreference = task.protocolPreference
         
         var allResults: [UDPResult] = []
         
@@ -892,8 +901,8 @@ class QuickDiagnosisManager: ObservableObject {
         let probeCount = task.options?.count ?? 3
         traceManager.probesPerHop = probeCount
         
-        // 设置 IPv6 偏好
-        traceManager.protocolPreference = task.useIPv6 ? .ipv6Only : .ipv4Only
+        // 设置 IP 协议偏好
+        traceManager.protocolPreference = task.protocolPreference
         
         // 开始新的追踪
         await traceManager.startTrace(host: task.target)
