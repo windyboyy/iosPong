@@ -115,7 +115,7 @@ struct AgreementContent {
 
 本摘要旨在帮助您快速了解我们如何收集和使用您的个人信息。
 
-【重要提示】本应用为纯本地应用，所有数据均存储在您的设备本地，不会上传至任何服务器。
+【重要提示】本应用为纯本地应用，所有数据均存储在您的设备本地，不会主动上传至我们的服务器。
 
 我们收集的信息（仅存储于本地）：
 • 设备信息：设备型号、操作系统版本、设备标识符（用于本地展示）
@@ -127,6 +127,10 @@ struct AgreementContent {
 • 提供网络探测服务
 • 展示设备网络环境信息
 • 保存历史记录方便下次使用
+
+网络请求说明：
+• IP归属地查询功能会向第三方服务发送您的公网IP地址，用于获取IP地理位置信息
+• 除此之外，我们不会向任何服务器发送您的个人信息
 
 您的权利：
 • 随时清除历史记录
@@ -194,9 +198,25 @@ struct AgreementContent {
 
 四、第三方服务
 
-1. IP归属地查询：使用第三方API查询公网IP归属地信息
-   • 仅发送您的公网IP地址
-   • 用于获取IP地理位置信息
+本应用使用以下第三方网络服务查询IP归属地信息：
+
+1. 网易IP查询服务（mail.163.com）
+   • 提供方：网易公司
+   • 功能：获取当前设备的公网IP地址及归属地
+   • 发送数据：网络请求（自动携带公网IP）
+   • 返回数据：公网IP地址、国家、省份、城市、运营商
+
+2. Bilibili IP查询服务（api.live.bilibili.com）
+   • 提供方：哔哩哔哩
+   • 功能：查询指定IP的地理位置信息
+   • 发送数据：待查询的IP地址
+   • 返回数据：国家、省份、城市、运营商、经纬度
+
+3. ipinfo.io ASN查询服务（api.ipinfo.io）
+   • 提供方：IPinfo Inc.（美国）
+   • 功能：查询IP的AS号（自治系统号）
+   • 发送数据：待查询的IP地址
+   • 返回数据：AS号、AS名称、国家
 
 五、信息共享
 
@@ -286,10 +306,26 @@ struct AgreementContent {
 
 三、第三方网络服务
 
-1. IP归属地查询服务
-   • 功能：查询公网IP的地理位置信息
-   • 发送数据：公网IP地址
-   • 返回数据：IP归属地、运营商信息
+1. 网易IP查询服务
+   • 服务地址：mail.163.com
+   • 提供方：网易公司
+   • 功能：获取当前设备的公网IP地址及归属地
+   • 发送数据：网络请求（自动携带公网IP）
+   • 返回数据：公网IP地址、国家、省份、城市、运营商
+
+2. Bilibili IP查询服务
+   • 服务地址：api.live.bilibili.com
+   • 提供方：哔哩哔哩
+   • 功能：查询指定IP的地理位置信息
+   • 发送数据：待查询的IP地址
+   • 返回数据：国家、省份、城市、运营商、经纬度
+
+3. ipinfo.io ASN查询服务
+   • 服务地址：api.ipinfo.io
+   • 提供方：IPinfo Inc.（美国）
+   • 功能：查询IP的AS号（自治系统号）
+   • 发送数据：待查询的IP地址
+   • 返回数据：AS号、AS名称、国家
 
 四、说明
 
@@ -367,7 +403,7 @@ Last Updated: January 5, 2026
 
 This summary is intended to help you quickly understand how we collect and use your personal information.
 
-[IMPORTANT] This is a purely local application. All data is stored on your device locally and will not be uploaded to any server.
+[IMPORTANT] This is a purely local application. All data is stored on your device locally and will not be actively uploaded to our servers.
 
 Information We Collect (stored locally only):
 • Device Information: Device model, operating system version, device identifier (for local display)
@@ -379,6 +415,10 @@ How We Use Information:
 • Provide network probe services
 • Display device network environment information
 • Save history for convenient future use
+
+Network Request Notice:
+• The IP geolocation feature sends your public IP address to third-party services to obtain geographic location information
+• Other than this, we do not send your personal information to any server
 
 Your Rights:
 • Clear history at any time
@@ -446,9 +486,25 @@ We understand the importance of personal information to you. We will protect you
 
 4. Third-Party Services
 
-1. IP Geolocation Query: Uses third-party API to query public IP geolocation information
-   • Only sends your public IP address
-   • Used to obtain IP geographic location information
+This application uses the following third-party network services for IP geolocation:
+
+1. NetEase IP Query Service (mail.163.com)
+   • Provider: NetEase, Inc.
+   • Function: Obtain current device's public IP address and geolocation
+   • Data Sent: Network request (automatically carries public IP)
+   • Data Returned: Public IP address, country, province, city, ISP
+
+2. Bilibili IP Query Service (api.live.bilibili.com)
+   • Provider: Bilibili Inc.
+   • Function: Query geographic location of specified IP
+   • Data Sent: IP address to query
+   • Data Returned: Country, province, city, ISP, coordinates
+
+3. ipinfo.io ASN Query Service (api.ipinfo.io)
+   • Provider: IPinfo Inc. (USA)
+   • Function: Query AS number (Autonomous System Number) of IP
+   • Data Sent: IP address to query
+   • Data Returned: AS number, AS name, country
 
 5. Information Sharing
 
@@ -538,10 +594,26 @@ This application currently does not integrate any third-party commercial SDKs, i
 
 3. Third-Party Network Services
 
-1. IP Geolocation Query Service
-   • Function: Query geographic location information of public IP
-   • Data Sent: Public IP address
-   • Data Returned: IP geolocation, carrier information
+1. NetEase IP Query Service
+   • Service URL: mail.163.com
+   • Provider: NetEase, Inc.
+   • Function: Obtain current device's public IP address and geolocation
+   • Data Sent: Network request (automatically carries public IP)
+   • Data Returned: Public IP address, country, province, city, ISP
+
+2. Bilibili IP Query Service
+   • Service URL: api.live.bilibili.com
+   • Provider: Bilibili Inc.
+   • Function: Query geographic location of specified IP
+   • Data Sent: IP address to query
+   • Data Returned: Country, province, city, ISP, coordinates
+
+3. ipinfo.io ASN Query Service
+   • Service URL: api.ipinfo.io
+   • Provider: IPinfo Inc. (USA)
+   • Function: Query AS number (Autonomous System Number) of IP
+   • Data Sent: IP address to query
+   • Data Returned: AS number, AS name, country
 
 4. Notes
 
